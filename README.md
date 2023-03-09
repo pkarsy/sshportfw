@@ -233,7 +233,7 @@ No need to read all this, just for completeness. The (many) problems with the th
 This is the method I used for a lot of time, however if there are a lot of rules, the manual process becomes time consuming and error prone.
 
 ### Solution 2 : VPN (Not the anonymizing providers but self hosted mesh VPNs)
-I tried [Zerotier](https://www.zerotier.com/)](https://www.zerotier.com/) and [Nebula](https://github.com/slackhq/nebula). For complex setups with multiple internal (NAT) network docker instances or virtual machines,  VPN probably is the way to go.
+I tried [Zerotier](https://www.zerotier.com/) and [Nebula](https://github.com/slackhq/nebula). For complex setups with multiple internal (NAT) network docker instances or virtual machines,  VPN probably is the way to go.
 
 There are many downsides, however :
 - Many VPNs will only work if an Internet connection is available. **Even if we try to access a local node!** However, we mostly need access to our OpenWrt router **exactly** when there are problems on our network. The VPN works when we don't need it and stops working the exact moment we need it!
