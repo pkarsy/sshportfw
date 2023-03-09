@@ -125,9 +125,9 @@ The "forwardings.json" file is on purpose very simple and does not have any othe
 When you configure the "forwardings.json" you have to run it manually to check the output. Add one entry at a time.
 If you are in constant need of the port forward facility, ie to use your printer then put the program in the list of the startup programs. If you put it in a cron startup script it wont run because it needs the DISPLAY environment variable. If you use ControlPanel->StartupApps it is ok. Redirect the output to a file to know what happens if you have problems, or use the --syslog flag.
 
-## Configuring the ~/.ssh/config
+## Adding functionality : Configuring the ~/.ssh/config
 
-### Using a control socket
+### ~/.ssh/config : Using a control socket
 At the **END** of ~/.ssh/config you may want to add
 ```sh
 match host * # or for specific hosts only
@@ -142,7 +142,7 @@ match host * # or for specific hosts only
 The control socket makes subsequent connections very fast, but there are some considerations, see the manual.
 Do not put such global options at start because they cannot be overriden by subsequent entries.
 
-### Access your devices sometimes from inside of the LAN and sometimes from the outside world.
+### ~/.ssh/config : Access LAN devices from outside.
 Most LANs have a public IPV4 address and private(NAT) IPV4 addresses for all devices inside the LAN. Let's suppose we have a Raspberry Pi with **static** private LAN address 10.6.3.2(rpi.lan) We set up port forwarding on our router and we can access our Rpi from outside using mydynamicip.freemyip.com:2002(WARNING this topic is not explained here find instructions for your router)
 We want ssh (and sshportfw) to connect to this device(Rpi) even when using our laptop outside of our home.
 An entry like this in ~/.ssh/config will do the trick :
@@ -164,7 +164,7 @@ host rpi
 This rule can distinguish the network by the first 3 numbers of an IPv4. Of course we can detect another unique element of our network. Be careful here as a lot of NATs tend to use the 192.168.0.x or 192.168.1.x, and can be hard to distinguish them. It is probably beneficial to use less comman IP ranges.
 NOTE : If we have a range extender/second router giving a different subnet, the ssh config needs additional rules.
 
-### Access internel services using a jumphost
+### ~/.ssh/config : Access internel services using a jumphost
 If we can't or don't want to open a lot of ports to our router (see the previous example) we can use a jumphost
 ```sh
 match host rpi !exec "ip -4 a | grep -q 10.6.3."
@@ -199,8 +199,8 @@ http://routerluci.fw:8080
 There are plenty of tutorials on how to use ports<1024 (SETCAP port redir etc), but it may not worth the effort. It offers a minor improvement but involves manipulating files and services as root, adding to the complexity and creating security considerations.
 
 
-## Security implications
-First of all, use the program at your own risk! Anything related to SSH with the wrong configuration can expose your appliances/PCs to the world. As sshportfw uses the standard openssh client, all the problems presented here are in fact ssh misconfiguration problems.
+## Security
+First of all, use the program at your own risk! Anything related to SSH with the wrong configuration can expose your appliances/PCs to the world.
 - On a system with multiple users, all users with a shell will have access to the remote services, at least to the login page. The program is designed to be used from your own trusted PC/laptop, not from a shared computer at work/university. The use of a SSH client in a machine that is not yours is a security risk anyway. Of course this depends on how importand the server is.
 - The ssh command keeps the SSH connection open as long as there are active forwardings (This can be very long) but ever after this, the program keeps the connection open if you use the conrolSocket option. After this, the SSH connection is closed and you will need to re-login (ie you need to touch again your youbikey) to use the service.
 - Password-based authentication must be avoided (Easily stolen and guessed !). And file-based private ssh keys (those in ~/.ssh/) can be copied and used without you noticing. A hardware security key is the real solution.
@@ -208,17 +208,17 @@ First of all, use the program at your own risk! Anything related to SSH with the
 ## ssh tip : Security tokens, Yubikey, Solokey, GNUK
 Tokens such as [YubikeyTODO](https://www.yubico.com/) or [GNUK](http://www.fsij.org/category/gnuk.html) SOLOKEY can offer levels of security and trust not conceivable with key files. The private key is stored on the hardware token and the token is designed to perform specific cryptographic operations with it, but never allow the key to escape out of the device. Note that dropbear SSH server (used by OpenWRT) cannot handle FIDO(YbikeyTODO Solokey) private keys (those with -sk suffix). You have to install and configure the OpenSSH server for this purpose. GNUK uses normal ssh keys but it is somewhat difficult to build the hardware and configure the system.
 
-## Other platforms
+### Other platforms
 The program is pure Go(golang) and is trivial to compile (and cross compile) for any supported platform. It is only tested on Linux however. If you can run the application successfully on mac or windows send me the instructions to include in this document.
 
-## Alternative solutions to port forwarding
+### Alternative solutions
 No need to read all this, just for completeness. The (many) problems with the alternative solutions are the reason sshportfw was created.
 
 
-### Solution 1. plain ssh with forwarding rules in ~/.ssh/config or directly on command line
-This is the method I used for a lot of time, however if there are a lot of rules, easily the manual process becomes very boring and sometimes time consuming and error prone.
+### Solution 1 : plain ssh with forwarding rules in ~/.ssh/config or directly on command line
+This is the method I used for a lot of time, however if there are a lot of rules, the manual process becomes time consuming and error prone.
 
-### Alternative solution 1. VPN (Not the anonymizing providers but self hosted mesh VPNs)
+### Solution 2 : VPN (Not the anonymizing providers but self hosted mesh VPNs)
 I tried [Zerotier](https://www.zerotier.com/)](https://www.zerotier.com/) and [Nebula](https://github.com/slackhq/nebula). For complex setups with multiple internal (NAT) network docker instances or virtual machines,  VPN probably is the way to go.
 
 There are many downsides, however :
@@ -233,7 +233,7 @@ and configure a printer setup pointing to 127.0.7.1:6000 IPP port TODO fix IP. A
 - debugging VPN problems can become very difficult, as every node can be accessed effectively in 2 different ways through the normal IP or the VPN one. It is not uncommon, for traffic designed to pass through a real interface, to go via VPN or vice versa, or for the VPN to not work due to firewall rules (real firewall or virtual!)
 - requires additional software to be installed on every node. The software may not be available for some platforms. And for many OpenWRT routers, there is not enough free space. Most routers have only enough flash to store their own proprietary firmware. One example I have is the Xiaomi Mi gigabit edition. It is very fast, with enough RAM, easily sustains 300Mbps traffic, and can run OpenWRT perfectly, but has only 8GB flash.
 
-### Alternative solution 2. Securing the web interface with SSL/TLS
+### Solution 3 : Securing the web interface with SSL/TLS
 Many services such as OpenWrt uhttpd or many network printers allow secure connections over SSL/TLS. With this method, we forget about both VPN and SSH port forwarding and we connect directly to the server. Again there are many(fatal im opinion) problems.
 
 - Many web interfaces of routers, smart switches and other appliances, do not offer the option for SSL
