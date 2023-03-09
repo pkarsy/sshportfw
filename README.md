@@ -126,6 +126,8 @@ The "forwardings.json" file is on purpose very simple and does not have any othe
 When you configure the "forwardings.json" you have to run it manually to check the output.
 If you are in constant need of the port forward facility, ie to use your printer then put the program in the list of the startup programs. If you put it in a cron startup script it wont run because it needs the DISPLAY environment variable. If you use ControlPanel->StartupApps it is ok. Redirect the output to a file to know what happens if you have problems, or use the --syslog flag.
 
+This is all the functionality sshportfw has. The next sections are about configuring ssh in order to make sshportfw more useful.
+
 ## Adding functionality : Configuring the ~/.ssh/config
 
 ### ~/.ssh/config : Using a control socket
