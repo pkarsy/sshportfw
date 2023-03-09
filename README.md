@@ -118,11 +118,11 @@ A sample config looks like this: (You can copy-paste it and edit)
 
 The "Host" can be the hostname(or the IP) or a **Host entry inside ~/.ssh/config** This is much preffered as we can use many ssh options (user, port jumphost and others). By pointing our browser to "http://127.0.14.1:8080" we can access LuCi on our router. Also, note that by playing with 127.x.x.x addresses we can use the same listening port (8080 in this case) with multiple entries. Note also that the browser may complain about "insecure connections". This is harmless (I am not a security expert, so no guaranties), all traffic is tunnelled via ssh, and decrypted only at the remote host. To avoid true insecure connections (connections that transfer creartext data via the network), the remote service must be blocked using the remote firewall and only be accessible via the remote "lo" interface
 
-The "forwardings.json" file is on purpose very simple and does not have any other options. All other entries (for example Username Hostname) ARE IGNORED. If you need more functionality it can be added in the powerfull "~/.ssh/config" file by creating a new "Host" entry
+The "forwardings.json" file is on purpose very simple and does not have any other options. All other entries (for example Username Hostname) ARE IGNORED. If you need more functionality it can be added in the powerfull "~/.ssh/config" file by creating a new "Host" entry.
 
 
 ### STEP 4 : running the program
-When you configure the "forwardings.json" you have to run it manually to check the output. Add one entry at a time.
+When you configure the "forwardings.json" you have to run it manually to check the output.
 If you are in constant need of the port forward facility, ie to use your printer then put the program in the list of the startup programs. If you put it in a cron startup script it wont run because it needs the DISPLAY environment variable. If you use ControlPanel->StartupApps it is ok. Redirect the output to a file to know what happens if you have problems, or use the --syslog flag.
 
 ## Adding functionality : Configuring the ~/.ssh/config
@@ -139,11 +139,11 @@ match host * # or for specific hosts only
     ControlPersist 300
 ```
 
-The control socket makes subsequent connections very fast, but there are some considerations, see the manual.
-Do not put such global options at start because they cannot be overriden by subsequent entries.
+The control socket makes subsequent connections very fast, but there are some drawbacks, see the manual.
+Do not put such global options at the beggining of the file, because they cannot be overriden by subsequent entries.
 
 ### ~/.ssh/config : Access LAN devices from outside.
-Most LANs have a public IPV4 address and private(NAT) IPV4 addresses for all devices inside the LAN. Let's suppose we have a Raspberry Pi with **static** private LAN address 10.6.3.2(rpi.lan) We set up port forwarding on our router and we can access our Rpi from outside using mydynamicip.freemyip.com:2002(WARNING this topic is not explained here find instructions for your router)
+Most LANs have a public IPV4 address and private(NAT) IPV4 addresses for all devices inside the LAN. Let's suppose we have a Raspberry Pi with **static** private LAN address 10.6.3.2(rpi.lan) We can set up port forwarding on our router and we can access our Rpi from outside using mydynamicip.freemyip.com:2002 (this topic is not explained, here find instructions for your router)
 We want ssh (and sshportfw) to connect to this device(Rpi) even when using our laptop outside of our home.
 An entry like this in ~/.ssh/config will do the trick :
 
@@ -161,7 +161,7 @@ host rpi
   user auser
   # some options but dont put forwarding rules here
 ```
-This rule can distinguish the network by the first 3 numbers of an IPv4. Of course we can detect another unique element of our network. Be careful here as a lot of NATs tend to use the 192.168.0.x or 192.168.1.x, and can be hard to distinguish them. It is probably beneficial to use less comman IP ranges.
+This rule can detect the network 10.5.3.XX and act accordingly. Of course we can detect another unique element of our network. Be careful here as a lot of NATs tend to use the 192.168.0.x or 192.168.1.x, and can be hard to distinguish them. It is probably beneficial to use less comman IP ranges.
 NOTE : If we have a range extender/second router giving a different subnet, the ssh config needs additional rules.
 
 ### ~/.ssh/config : Access internel services using a jumphost
@@ -205,8 +205,8 @@ First of all, use the program at your own risk! Anything related to SSH with the
 - The ssh command keeps the SSH connection open as long as there are active forwardings (This can be very long) but ever after this, the program keeps the connection open if you use the conrolSocket option. After this, the SSH connection is closed and you will need to re-login (ie you need to touch again your youbikey) to use the service.
 - Password-based authentication must be avoided (Easily stolen and guessed !). And file-based private ssh keys (those in ~/.ssh/) can be copied and used without you noticing. A hardware security key is the real solution.
 
-## ssh tip : Security tokens, Yubikey, Solokey, GNUK
-Tokens such as [YubikeyTODO](https://www.yubico.com/) or [GNUK](http://www.fsij.org/category/gnuk.html) SOLOKEY can offer levels of security and trust not conceivable with key files. The private key is stored on the hardware token and the token is designed to perform specific cryptographic operations with it, but never allow the key to escape out of the device. Note that dropbear SSH server (used by OpenWRT) cannot handle FIDO(YbikeyTODO Solokey) private keys (those with -sk suffix). You have to install and configure the OpenSSH server for this purpose. GNUK uses normal ssh keys but it is somewhat difficult to build the hardware and configure the system.
+## Security hardening : Yubikey, Solokey, GNUK
+Tokens such as [YubikeyTODO](https://www.yubico.com/) or [GNUK](http://www.fsij.org/category/gnuk.html) SOLOKEY can offer levels of security and trust not conceivable with key files. The private key is stored on the hardware token and the token is designed to perform specific cryptographic operations with it, but never allow the key to escape out of the device. Note that dropbear SSH server (used by OpenWRT) cannot handle FIDO(YbikeyTODO Solokey) private keys (those with -sk suffix). You have to install and configure the OpenSSH server for this purpose. GNUK uses normal ssh keys but it is somewhat difficult to build the hardware and configure the system. Also the more expensive tokens like Ybikey offer authentication methods compatibe with dropbear.
 
 ### Other platforms
 The program is pure Go(golang) and is trivial to compile (and cross compile) for any supported platform. It is only tested on Linux however. If you can run the application successfully on mac or windows send me the instructions to include in this document.
