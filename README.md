@@ -155,7 +155,7 @@ match host * # or for specific hosts only
 ```
 
 The control socket makes subsequent connections very fast, but there are some drawbacks, see the manual.
-Do not put such global options at the beggining of the file, because they cannot be overriden by subsequent entries.
+Do not put such global options at the beginning of the file, because they cannot be overridden by subsequent entries.
 
 ### ~/.ssh/config : Access LAN devices from outside.
 Most LANs have a public IPV4 address and private(NAT) IPV4 addresses for all devices inside the LAN. Let's suppose we have a Raspberry Pi with **static** private LAN address 10.5.2.2(rpi.lan) We can set up port forwarding on our router and we can access our Rpi from outside using mydynamicip.freemyip.com:2002 (this topic is not explained, here find instructions for your router)
@@ -176,8 +176,8 @@ host rpi
   user auser
   # some options but dont put forwarding rules here
 ```
-This rule can detect the network 10.5.2.XX and act accordingly. Of course we can detect another unique element of our network. Be careful here as a lot of NATs tend to use the 192.168.0.x or 192.168.1.x, and can be hard to distinguish them. It is probably beneficial to use less common IP ranges.
-NOTE : If we have a range extender/second router giving a different subnet, the ssh config needs additional rules.
+This rule can detect network 10.5.2.XX and act accordingly. Of course, we can detect another unique element of our network. Be careful here as a lot of NATs tend to use the 192.168.0.x or 192.168.1.x, and can be hard to distinguish them. It is probably beneficial to use less common IP ranges.
+NOTE: If we have a range extender/second router giving a different subnet, the ssh config needs additional rules.
 
 ### ~/.ssh/config : Access firewalled services using a jumphost
 If we can't or don't want to open a lot of ports to our router (see the previous example) we can use a jumphost
@@ -193,11 +193,11 @@ match host router !exec "ip -4 a | grep -q 10.5.2."
 
 
 ## command line
-Only theese are availabe
+Only these are availabe
 -v --version
 -s --syslog
 
-### Use hostnames instead of IP on browser.
+### Use hostnames instead of IPs on the browser.
 - We can edit /etc/hosts and add the line
   ```sh
   # This local port connects with the
@@ -207,36 +207,36 @@ Only theese are availabe
   Now the service can be accessed by pointing our browser to "routerluci.fw:8080".
   NOTE: It may be tempting to put the DNS resolution(routerluci.fw in this case) to our OpenWRT router itself (hostnames section) but the hostnames will *not* be available when we are connected to another network, or if using a local resolver like dnscrypt-proxy which (at least by default) ignores the DNS server of the router.
 
-### Eliminate port specifiction in the browser URL (probably a bad idea)
+### Eliminate port specification in the browser URL (probably a bad idea)
 ```url
 This means
 http://routerluci.fw  (The port is in fact 80)
 instead of
 http://routerluci.fw:8080
 ```
-There are plenty of tutorials on how to use ports<1024 (SETCAP port redir etc), but it may not worth the effort. It offers a minor improvement but involves manipulating files and services as root, adding to the complexity and creating security considerations.
+There are plenty of tutorials on how to use ports<1024 (SETCAP port redir etc), but it may not be worth the effort. It offers a minor improvement but involves manipulating files and services as root, adding to the complexity and creating security considerations.
 
 
 ## Security
 First of all, use the program at your own risk! Anything related to SSH with the wrong configuration can expose your appliances/PCs to the world.
-- On a system with multiple users, all users with a shell will have access to the remote services, at least to the login page. The program is designed to be used from your own trusted PC/laptop, not from a shared computer at work/university. The use of a SSH client in a machine that is not yours is a security risk anyway. Of course this depends on how importand the server is.
-- The ssh command keeps the SSH connection open as long as there are active forwardings (This can be very long) but ever after this, the program keeps the connection open if you use the conrolSocket option. After this, the SSH connection is closed and you will need to re-login (ie you need to touch again your youbikey) to use the service.
+- On a system with multiple users, all users with a shell will have access to the remote services, at least to the login page. The program is designed to be used from your own trusted PC/laptop, not from a shared computer at work/university. The use of an SSH client in a machine that is not yours is a security risk anyway. Of course, this depends on how important the server is.
+- The ssh command keeps the SSH connection open as long as there are active forwardings (This can be very long) but ever after this, the program keeps the connection open if you use the ConrolSocket option. After this, the SSH connection is closed and you will need to re-login (ie you need to touch again your youbikey) to use the service.
 - Password-based authentication must be avoided (Easily stolen and guessed !). And file-based private ssh keys (those in ~/.ssh/) can be copied and used without you noticing. A hardware security key is the real solution.
 
-## Security hardening : Yubikey, Solokey, GNUK
-Security keys such as [Yubico](https://www.yubico.com/) [Solokey](https://solokeys.com/) or [GNUK](http://www.fsij.org/category/gnuk.html) can offer enhanced security without the need to type passphrases. The private key is stored on the hardware token and the token is designed to perform specific cryptographic operations with it, but never allow (the private key) to escape out of the device. Note that dropbear SSH server (used by OpenWRT) cannot handle FIDO private keys (those with -sk suffix). You have to install and configure the OpenSSH server for this purpose. GNUK uses normal ssh keys but it is somewhat difficult to build the hardware and configure the system. Also the more expensive tokens like Ybikey offer authentication methods compatibe with dropbear. Do your research and keep in mind that you need 2 of them, the one is the backup if you loose the other.
+### Security hardening: Yubikey, Solokey, GNUK
+Security keys such as [Yubico](https://www.yubico.com/) [Solokey](https://solokeys.com/) or [GNUK](http://www.fsij.org/category/gnuk.html) can offer enhanced security without the need to type passphrases. The private key is stored on the hardware token and the token is designed to perform specific cryptographic operations with it, but never allow (the private key) to escape from the device. Note that dropbear SSH server (used by OpenWRT) cannot handle FIDO private keys (those with -sk suffix). You have to install and configure the OpenSSH server for this purpose. GNUK uses normal ssh keys but it is somewhat difficult to build the hardware and configure the system. Also, the more expensive tokens like Ybikey offer authentication methods compatible with dropbear. Do your research and keep in mind that you need 2 of them, the one is the backup if you lose the other.
 
 ### Other platforms
-The program is pure Go(golang) and is trivial to compile (and cross compile) for any supported platform. It is only tested on Linux however. If you can run the application successfully on a mac or windows send me the instructions to include in this document.
+The program is pure Go(golang) and is trivial to compile (and cross-compile) for any supported platform. It is only tested on Linux however. If you can run the application successfully on a mac or windows send me the instructions to include in this document.
 
 ### Alternative solutions
-No need to read all this, just for completeness. The (many) problems with the theese solutions are the reason sshportfw was created.
+No need to read all this, just for completeness. The (many) problems with the these solutions are the reason sshportfw was created.
 
 
-### Solution 1 : plain ssh with forwarding rules in ~/.ssh/config or directly on command line
-This is the method I used for a lot of time, however if there are a lot of rules, the manual process becomes time consuming and error prone.
+### Solution 1: plain ssh with forwarding rules in ~/.ssh/config or directly on command line
+This is the method I used for a lot of time, however, if there are a lot of rules, the manual process becomes time consuming and error-prone.
 
-### Solution 2 : VPN (Not the anonymizing providers but self hosted mesh VPNs)
+### Solution 2: VPN (Not the anonymizing providers but self-hosted mesh VPNs)
 I tried [Zerotier](https://www.zerotier.com/) and [Nebula](https://github.com/slackhq/nebula). For complex setups with multiple internal (NAT) network docker instances or virtual machines,  VPN probably is the way to go.
 
 There are many downsides, however :
@@ -247,12 +247,12 @@ There are many downsides, however :
 - If the service you want to use is not hosted on the same server as the VPN node, then the VPN alone cannot help you. You need custom port forwarding rules. For example, a network printer(192.168.6.25) at work is connected to the same network as the Raspberry Pi (192.168.6.2). At home, we can access the Rpi either via VPN or SSH.
 To print from home with SSH all we need to do is
 ssh -L127.0.7.1:6000:192.168.6.25:661
-and configure a printer setup pointing to 127.0.7.1:6000 IPP port TODO fix IP. A VPN though allows us to reach only the RPi not the printer, and RPi need to have additional rules for port forwarding or run a redirecting daemon as rinetd, a very awkward and complex solution.
+and configure a printer setup pointing to 127.0.7.1:6000 IPP port TODO fix IP. A VPN though allows us to reach only the RPi, not the printer, and RPi need to have additional rules for port forwarding or run a redirecting daemon as rinetd, a very awkward and complex solution.
 - debugging VPN problems can become very difficult, as every node can be accessed effectively in 2 different ways through the normal IP or the VPN one. It is not uncommon, for traffic designed to pass through a real interface, to go via VPN or vice versa, or for the VPN to not work due to firewall rules (real firewall or virtual!)
 - requires additional software to be installed on every node. The software may not be available for some platforms. And for many OpenWRT routers, there is not enough free space. Most routers have only enough flash to store their own proprietary firmware. One example I have is the Xiaomi Mi gigabit edition. It is very fast, with enough RAM, easily sustains 300Mbps traffic, and can run OpenWRT perfectly, but has only 8GB flash.
 
-### Solution 3 : Securing the web interface with SSL/TLS
-Many services such as OpenWrt uhttpd or many network printers allow secure connections over SSL/TLS. With this method, we forget about both VPN and SSH port forwarding and we connect directly to the server. Again there are many(fatal im opinion) problems.
+### Solution 3: Securing the web interface with SSL/TLS
+Many services such as OpenWrt uhttpd or many network printers allow secure connections over SSL/TLS. With this method, we forget about both VPN and SSH port forwarding and we connect directly to the server. Again there are many(fatal in opinion) problems.
 
 - Many web interfaces of routers, smart switches and other appliances, do not offer the option for SSL
 
