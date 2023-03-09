@@ -207,13 +207,13 @@ First of all, use the program at your own risk! Anything related to SSH with the
 - Password-based authentication must be avoided (Easily stolen and guessed !). And file-based private ssh keys (those in ~/.ssh/) can be copied and used without you noticing. A hardware security key is the real solution.
 
 ## Security hardening : Yubikey, Solokey, GNUK
-Security keys such as [Yubico](https://www.yubico.com/) [Solokey](https://solokeys.com/) or [GNUK](http://www.fsij.org/category/gnuk.html) can offer enhanced security without the need to type passphrases. The private key is stored on the hardware token and the token is designed to perform specific cryptographic operations with it, but never allow (the private key) to escape out of the device. Note that dropbear SSH server (used by OpenWRT) cannot handle FIDO private keys (those with -sk suffix). You have to install and configure the OpenSSH server for this purpose. GNUK uses normal ssh keys but it is somewhat difficult to build the hardware and configure the system. Also the more expensive tokens like Ybikey offer authentication methods compatibe with dropbear. Do your research and keep in mind that you need 2 of them, the one is backup if you loose the other.
+Security keys such as [Yubico](https://www.yubico.com/) [Solokey](https://solokeys.com/) or [GNUK](http://www.fsij.org/category/gnuk.html) can offer enhanced security without the need to type passphrases. The private key is stored on the hardware token and the token is designed to perform specific cryptographic operations with it, but never allow (the private key) to escape out of the device. Note that dropbear SSH server (used by OpenWRT) cannot handle FIDO private keys (those with -sk suffix). You have to install and configure the OpenSSH server for this purpose. GNUK uses normal ssh keys but it is somewhat difficult to build the hardware and configure the system. Also the more expensive tokens like Ybikey offer authentication methods compatibe with dropbear. Do your research and keep in mind that you need 2 of them, the one is the backup if you loose the other.
 
 ### Other platforms
-The program is pure Go(golang) and is trivial to compile (and cross compile) for any supported platform. It is only tested on Linux however. If you can run the application successfully on mac or windows send me the instructions to include in this document.
+The program is pure Go(golang) and is trivial to compile (and cross compile) for any supported platform. It is only tested on Linux however. If you can run the application successfully on a mac or windows send me the instructions to include in this document.
 
 ### Alternative solutions
-No need to read all this, just for completeness. The (many) problems with the alternative solutions are the reason sshportfw was created.
+No need to read all this, just for completeness. The (many) problems with the theese solutions are the reason sshportfw was created.
 
 
 ### Solution 1 : plain ssh with forwarding rules in ~/.ssh/config or directly on command line
