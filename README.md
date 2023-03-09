@@ -39,7 +39,14 @@ for example
 accept the unknown host message (if this is the first time and after you verify you are connection to the correct host) and then logout. If the host is unknown the time sshportfw runs the command, the connection will fail unless you notice the message and answer accordingly.
 
 ### STEP3 : Editing the forwardings.json file
-The program is looking for the file  ~/.config/sshportfw/forwardings.json . It does not try to create it by itself. You can add entries for your devices in this file.
+The program is looking for the file  
+
+```sh
+~/.config/sshportfw/forwardings.json
+```
+
+It does not try to create it by itself. You can add entries for your 
+devices in this file.
 
 A sample config follows so you can copy-paste and edit it. This config assumes a router at 10.5.2.1
 and the other LAN devices to have 10.5.2.X addresses. Also we assume that local DNS is working, for example kyocera or kyocera.lan resolve to the IP of the device. You can completly ignore DNS by using the IP addresses.
