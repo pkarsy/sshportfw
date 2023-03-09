@@ -1,14 +1,15 @@
 # sshportfw
 
-A program (running in the background on a Linux desktop environment) doing automatic SSH port forwarding whenever we need to access our SSH-secured network appliances and servers.
+A program doing automatic SSH port forwarding whenever we need to access our SSH-secured network appliances and servers. The audience is users/administrators which heavily rely on ssh to access remote devices.
 
-Typically port forwarding is used to access [OpenWRT](https://openwrt.org/) routers, [Syncthing](https://syncthing.net/) web interfaces, and in general services that (due to security reasons) can only serve the localhost interface (or the LAN at most). Not only that, the ssh config file is very powerfull and allows to bypass firewalls, accessing remotelly and securelly print queues etc, and all that with a (security) maturity anparalleled by probbably any other software.
 
-The idea is to have sshportfw listening to local addresses such as *127.0.5.1:8080*. When we point our browser to this address, ssh is called automatically and connects to our OpenWRT router. The same thing can be achieved with the command (must be executed BEFORE we open the web page)
+Typically port forwarding is used to access [OpenWRT](https://openwrt.org/) routers, [Syncthing](https://syncthing.net/) web interfaces, and in general services that (due to security reasons) can only serve the localhost interface. Not only that, the ssh config file is very powerfull and allows to bypass firewalls, accessing remotelly and securelly print queues etc, and all that with a (security) maturity anparalleled by probbably any other software.
 
-> ssh -L127.0.5.1:8080:127.0.0.1:80 router(or the IP)
-
-but with sshportfw the process becomes automatic and frictionless. ssportfw calls ssh to do the actual forwarding so some expertice of configuring the ~/.ssh/config is necessary. Note however that you do NOT need to configure port forwardings inside ~/.ssh/config. The file ~/.congig/sshportfw/forwardings.json is used as we will see.
+The idea is to have sshportfw listening to local addresses such as *127.0.5.1:8080*. When we point our browser to this address, openssh client is called automatically and connects to our OpenWRT router. The same thing can be achieved with the command (must be executed BEFORE we open the web page)
+```sh
+> ssh -L127.0.5.1:8080:127.0.0.1:80 router  # (or the IP)
+```
+but with sshportfw the process becomes automatic. ssportfw calls ssh to do the actual forwarding so some expertice of configuring the ~/.ssh/config is necessary. Note however that you do NOT need to configure port forwardings inside ~/.ssh/config. The file ~/.config/sshportfw/forwardings.json is used as we will see.
 
 ## STEP 1 : Installation of the binary
 Note that the program is only tested on Linux.
@@ -196,13 +197,13 @@ When you configure the "forwardings.json" you have to run it manually to check t
 If you are in constant need of the port forward facility, ie to use your printer then put the program in the list of the startup programs. If you put it in a cron startup script it wont run because it needs the DISPLAY environment variable. If you use ControlPanel->StartupApps it is ok. Redirect the output to a file to know what happens if you have problems.
 
 ## Security implications
-First of all, use the program at your own risk! Anything related to SSH with the wrong configuration can expose your appliances/PCs to the world.
+First of all, use the program at your own risk! Anything related to SSH with the wrong configuration can expose your appliances/PCs to the world. As sshportfw uses the standard openssh client, all the problems presented here are in fact ssh misconfiguration problems.
 - On a system with multiple users, all users with a shell will have access to the remote services, at least to the login page. The program is designed to be used from your own trusted PC/laptop, not from a shared computer at work/university. The use of a SSH client in a machine that is not yours is a security risk anyway. Of course this depends on how importand the server is.
 - The ssh command keeps the SSH connection open as long as there are active forwardings (This can be very long) but ever after this, the program keeps the connection open if you use the conrolSocket option. After this, the SSH connection is closed and you will need to re-login (ie you need to touch again your youbikey) to use the service.
-- Password-based authentication has many downsides and it is not used at all by sshportfw. And file-based private ssh keys can be copied and used without you noticing. This is not a problem specific to this application but generally of SSH. This is the reason you *should* use a security key
+- Password-based authentication must be avoided (Easily stolen and guessed !). And file-based private ssh keys (those in ~/.ssh/) can be copied and used without you noticing. A hardware security key is the real solution.
 
 ## ssh tip : Security tokens, Yubikey, Solokey, GNUK
-Tokens such as [Yubikey](https://www.yubico.com/) or [GNUK](http://www.fsij.org/category/gnuk.html) SOLOKEY can offer levels of security and trust not conceivable with key files. The private key is stored on the hardware token and the token is designed to perform specific cryptographic operations with it, but never allow the key to escape out of the device. Note that dropbear SSH server (used by OpenWRT) cannot handle FIDO(Ybikey Solokey) private keys (those with -sk suffix). You have to install and configure the OpenSSH server for this purpose. GNUK uses normal ssh keys but it is somewhat difficult to build the hardware and configure the system.
+Tokens such as [YubikeyTODO](https://www.yubico.com/) or [GNUK](http://www.fsij.org/category/gnuk.html) SOLOKEY can offer levels of security and trust not conceivable with key files. The private key is stored on the hardware token and the token is designed to perform specific cryptographic operations with it, but never allow the key to escape out of the device. Note that dropbear SSH server (used by OpenWRT) cannot handle FIDO(YbikeyTODO Solokey) private keys (those with -sk suffix). You have to install and configure the OpenSSH server for this purpose. GNUK uses normal ssh keys but it is somewhat difficult to build the hardware and configure the system.
 
 ## Other platforms
 The program is pure Go(golang) and is trivial to compile (and cross compile) for any supported platform. It is only tested on Linux however. If you can run the application successfully on mac or windows send me the instructions to include in this document.
