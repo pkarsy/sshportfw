@@ -164,7 +164,7 @@ host rpi
 This rule can detect the network 10.5.3.XX and act accordingly. Of course we can detect another unique element of our network. Be careful here as a lot of NATs tend to use the 192.168.0.x or 192.168.1.x, and can be hard to distinguish them. It is probably beneficial to use less comman IP ranges.
 NOTE : If we have a range extender/second router giving a different subnet, the ssh config needs additional rules.
 
-### ~/.ssh/config : Access internel services using a jumphost
+### ~/.ssh/config : Access firewalled services using a jumphost
 If we can't or don't want to open a lot of ports to our router (see the previous example) we can use a jumphost
 ```sh
 match host rpi !exec "ip -4 a | grep -q 10.6.3."
@@ -176,6 +176,7 @@ match host rpi !exec "ip -4 a | grep -q 10.6.3."
 
 
 ## command line
+Only theese are availabe
 -v --version
 -s --syslog
 
