@@ -13,7 +13,7 @@ but with sshportfw the process becomes automatic. ssportfw calls ssh to do the a
 
 ## STEP 1 : Installation of the binary
 Note that the program is only tested on Linux.
-A Linux amd64 executable is included. It should run on every modern Linux for PC. It can probably work on other platforms(after a recompile), but it is not tested. See **Other platforms** below
+A Linux amd64 executable is included. It should run on every modern Linux for PC. It can probably work on other platforms (after a compile), but it is not tested. See **Other platforms** below
 ```sh
 > git clone https://github.com/pkarsy/sshportfw
 > cd sshportfw
@@ -32,9 +32,9 @@ A Linux amd64 executable is included. It should run on every modern Linux for PC
 ```
 
 ## STEP 2. Configuring
-On first run the program creates the file  ~/.congig/sshportfw/forwardings.json. You can add entries for your devices in this file.
+The program is looking for the file  ~/.congig/sshportfw/forwardings.json. It does not try to create it by itself. You can add entries for your devices in this file.
 
-A sample config looks like this:
+A sample config looks like this: (You can copy-paste it and edit)
 
 ```json
 [
