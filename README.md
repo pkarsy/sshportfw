@@ -147,16 +147,16 @@ The control socket makes subsequent connections very fast, but there are some dr
 Do not put such global options at the beggining of the file, because they cannot be overriden by subsequent entries.
 
 ### ~/.ssh/config : Access LAN devices from outside.
-Most LANs have a public IPV4 address and private(NAT) IPV4 addresses for all devices inside the LAN. Let's suppose we have a Raspberry Pi with **static** private LAN address 10.6.3.2(rpi.lan) We can set up port forwarding on our router and we can access our Rpi from outside using mydynamicip.freemyip.com:2002 (this topic is not explained, here find instructions for your router)
+Most LANs have a public IPV4 address and private(NAT) IPV4 addresses for all devices inside the LAN. Let's suppose we have a Raspberry Pi with **static** private LAN address 10.5.2.2(rpi.lan) We can set up port forwarding on our router and we can access our Rpi from outside using mydynamicip.freemyip.com:2002 (this topic is not explained, here find instructions for your router)
 We want ssh (and sshportfw) to connect to this device(Rpi) even when using our laptop outside of our home.
 An entry like this in ~/.ssh/config will do the trick :
 
 
 ```sh
-match host rpi !exec "ip -4 a | grep -q 10.6.3."
-  # the 10.6.3 must be adapted for every private LAN
+match host rpi !exec "ip -4 a | grep -q 10.5.2."
+  # the 10.5.2 must be adapted to our actual ip range
   # works only if the router is configured to redirect incoming
-  # TCP connections on port 2002 to 10.6.3.2:22
+  # TCP connections on port 2002 to 10.5.2.2:22
   # Also a dynamic DNS service must be configured on your router
   hostname mydynamicip.freemyip.com
   port 2002
@@ -165,13 +165,13 @@ host rpi
   user auser
   # some options but dont put forwarding rules here
 ```
-This rule can detect the network 10.5.3.XX and act accordingly. Of course we can detect another unique element of our network. Be careful here as a lot of NATs tend to use the 192.168.0.x or 192.168.1.x, and can be hard to distinguish them. It is probably beneficial to use less comman IP ranges.
+This rule can detect the network 10.5.2.XX and act accordingly. Of course we can detect another unique element of our network. Be careful here as a lot of NATs tend to use the 192.168.0.x or 192.168.1.x, and can be hard to distinguish them. It is probably beneficial to use less comman IP ranges.
 NOTE : If we have a range extender/second router giving a different subnet, the ssh config needs additional rules.
 
 ### ~/.ssh/config : Access firewalled services using a jumphost
 If we can't or don't want to open a lot of ports to our router (see the previous example) we can use a jumphost
 ```sh
-match host router !exec "ip -4 a | grep -q 10.6.3."
+match host router !exec "ip -4 a | grep -q 10.5.2."
   # Works only if the host is accessible from the outside world, and usually this is the router.
   # Of course we must setup a DynamicDns service for this to work
   # Almost all routers and of course OpenWRT has good support on this
