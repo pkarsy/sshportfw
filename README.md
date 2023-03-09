@@ -120,7 +120,7 @@ and the other LAN devices to have 10.5.2.X addresses. Also we assume that local 
 
 The "Host" can be the hostname(or the IP) or a **Host entry inside ~/.ssh/config** This is much preffered as we can use many ssh options (user, port jumphost and others). By pointing our browser to "http://127.0.14.1:8080" we can access LuCi on our router. Also, note that by playing with loopback 127.x.x.x addresses we can use the same listening port (8080 in this case) with multiple entries. Note also that the browser may complain about "insecure connections". This is harmless (I am not a security expert, so no guaranties), all traffic is tunnelled via ssh, and decrypted only at the remote host. To avoid true insecure connections (connections that transfer creartext data via the network), the remote service must be blocked using the remote firewall and only be accessible via the remote "lo" interface
 
-The "forwardings.json" file is on purpose very simple and does not have any other options. All other options (for example Username Hostname) ARE SINLENTLY IGNORED. If you need more functionality, it can be added in the powerfull "~/.ssh/config" file by creating a new "Host" entry.
+The "forwardings.json" file is on purpose very simple and does not have any other options. All other options (for example Username Hostname) ARE SILENTLY IGNORED. If you need more functionality, it can be added in the powerfull "~/.ssh/config" file by creating a new "Host" entry.
 
 
 ### STEP 4 : running the program
