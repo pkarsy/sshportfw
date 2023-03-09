@@ -188,7 +188,7 @@ Only theese are availabe
   127.0.14.1      routerluci.fw
   ```
   Now the service can be accessed by pointing our browser to "routerluci.fw:8080".
-  NOTE: It may be tempting to put the DNS resolution(routerluci.fw in this case) to our OpenWRT router itself (hostnames section) but the hostnames will *not* be available when we are connected to another network, or if using a local resolver like dnscrypt-proxy which (at least by default) ignores the LAN resolver.
+  NOTE: It may be tempting to put the DNS resolution(routerluci.fw in this case) to our OpenWRT router itself (hostnames section) but the hostnames will *not* be available when we are connected to another network, or if using a local resolver like dnscrypt-proxy which (at least by default) ignores the DNS server of the router.
 
 ### Eliminate port specifiction in the browser URL (probably a bad idea)
 ```url
