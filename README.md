@@ -176,7 +176,7 @@ host rpi
   user auser
   # some options but dont put forwarding rules here
 ```
-This rule can detect the network 10.5.2.XX and act accordingly. Of course we can detect another unique element of our network. Be careful here as a lot of NATs tend to use the 192.168.0.x or 192.168.1.x, and can be hard to distinguish them. It is probably beneficial to use less comman IP ranges.
+This rule can detect the network 10.5.2.XX and act accordingly. Of course we can detect another unique element of our network. Be careful here as a lot of NATs tend to use the 192.168.0.x or 192.168.1.x, and can be hard to distinguish them. It is probably beneficial to use less common IP ranges.
 NOTE : If we have a range extender/second router giving a different subnet, the ssh config needs additional rules.
 
 ### ~/.ssh/config : Access firewalled services using a jumphost
