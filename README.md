@@ -246,4 +246,4 @@ Many services such as OpenWrt uhttpd or many network printers allow secure conne
 
 - In most cases, the authentication mechanism is a mere password (LuCi for example). This is hardly an acceptable solution these days. Compare this with SSH protected with a FIDO token.
 
-- Even worse, some network services are not password protected (a printer queue). Sending a print job from the Internet (even if using TLS) is not an option at all, but SSH port forwarding offers a really elegant solution.
+- Even worse, some network services are not password protected (a printer queue). Having a printer accepting jobs from the whole Internet (even if using TLS) is not an option at all, but SSH port forwarding offers a really elegant solution.
