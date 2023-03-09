@@ -38,7 +38,7 @@ for example
 ```
 accept the unknown host message (if this is the first time) and then logout. sshportfw will not try to connect to any unknown host
 
-### STEP3 : Configuring the forwardings.json file
+### STEP3 : Editing the forwardings.json file
 The program is looking for the file  ~/.congig/sshportfw/forwardings.json. It does not try to create it by itself. You can add entries for your devices in this file.
 
 A sample config looks like this: (You can copy-paste it and edit)
@@ -102,23 +102,23 @@ A sample config looks like this: (You can copy-paste it and edit)
         "RemoteAddr": "127.0.0.1:80"
       },
       {
-        "Service": "",
+        "Service": "Printer1 GUI",
         "ListenAddr": "127.0.14.2:8080",
-        "RemoteAddr": "router-anatoliki.lan:8080"
+        "RemoteAddr": "printer1.lan:8080"
       },
       {
-        "Service": "RouterDytiki",
+        "Service": "Printer2 GUI",
         "ListenAddr": "127.0.14.3:8080",
-        "RemoteAddr": "router-dytiki.lan:8080"
+        "RemoteAddr": "printer2.lan:8080"
       }
     ]
   }
 ]
 ```
 
-The "Host" can be the hostname(or the IP) or a **Host entry inside ~/.ssh/config** This is much preffered as we can use many ssh options (user, port jumphost and others). By pointing our browser to "http://127.0.14.1:8080" we can access LuCi on our router. Also, note that by playing with 127.x.x.x addresses we can use the same listening port (8080 in this case) with multiple entries. Note also that the browser may complain about "insecure connections". This is harmless (I am not a security expert, so no guaranties), all traffic is tunnelled via ssh, and decrypted only at the remote host. To avoid true insecure connections (connections that transfer creartext data via the network), the remote service must be blocked using the remote firewall and only be accessible via the remote "lo" interface
+The "Host" can be the hostname(or the IP) or a **Host entry inside ~/.ssh/config** This is much preffered as we can use many ssh options (user, port jumphost and others). By pointing our browser to "http://127.0.14.1:8080" we can access LuCi on our router. Also, note that by playing with loopback 127.x.x.x addresses we can use the same listening port (8080 in this case) with multiple entries. Note also that the browser may complain about "insecure connections". This is harmless (I am not a security expert, so no guaranties), all traffic is tunnelled via ssh, and decrypted only at the remote host. To avoid true insecure connections (connections that transfer creartext data via the network), the remote service must be blocked using the remote firewall and only be accessible via the remote "lo" interface
 
-The "forwardings.json" file is on purpose very simple and does not have any other options. All other entries (for example Username Hostname) ARE IGNORED. If you need more functionality it can be added in the powerfull "~/.ssh/config" file by creating a new "Host" entry.
+The "forwardings.json" file is on purpose very simple and does not have any other options. All other options (for example Username Hostname) ARE SINLENTLY IGNORED. If you need more functionality, it can be added in the powerfull "~/.ssh/config" file by creating a new "Host" entry.
 
 
 ### STEP 4 : running the program
@@ -167,11 +167,13 @@ NOTE : If we have a range extender/second router giving a different subnet, the 
 ### ~/.ssh/config : Access firewalled services using a jumphost
 If we can't or don't want to open a lot of ports to our router (see the previous example) we can use a jumphost
 ```sh
-match host rpi !exec "ip -4 a | grep -q 10.6.3."
+match host router !exec "ip -4 a | grep -q 10.6.3."
   # Works only if the host is accessible from the outside world, and usually this is the router.
   # Of course we must setup a DynamicDns service for this to work
   # Almost all routers and of course OpenWRT has good support on this
-  ProxyJump mydynamicip.freemyip.com 
+  # also the SSH server must listen to port 20202 and the WAN port 20202 to be open
+  ProxyJump mydynamicip.freemyip.com
+  Port 20202
 ```
 
 
