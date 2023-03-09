@@ -31,7 +31,7 @@ A Linux amd64 executable is included. It should run on every modern Linux for PC
 > go run *.go
 ```
 
-### STEP 2 : Connect to every SSH server with command line BEFORE using this utility
+### STEP 2 : login to every SSH server with command line BEFORE using this utility
 for example
 ```
 > ssh router
@@ -57,6 +57,7 @@ A sample config looks like this: (You can copy-paste it and edit)
       },
       {
         "Service": "Kyocera",
+        "Comment": "Print queue",
         "ListenAddr": "127.0.10.4:6310",
         "RemoteAddr": "10.5.2.7:631"
       }
