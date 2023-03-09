@@ -121,6 +121,10 @@ The "Host" can be the hostname(or the IP) or a **Host entry inside ~/.ssh/config
 The "forwardings.json" file is on purpose very simple and does not have any other options. All other entries (for example Username Hostname) ARE IGNORED. If you need more functionality it can be added in the powerfull "~/.ssh/config" file by creating a new "Host" entry
 
 
+### STEP 4 : running the program
+When you configure the "forwardings.json" you have to run it manually to check the output. Add one entry at a time.
+If you are in constant need of the port forward facility, ie to use your printer then put the program in the list of the startup programs. If you put it in a cron startup script it wont run because it needs the DISPLAY environment variable. If you use ControlPanel->StartupApps it is ok. Redirect the output to a file to know what happens if you have problems, or use the --syslog flag.
+
 ## Configuring the ~/.ssh/config
 
 ### Using a control socket
@@ -194,10 +198,6 @@ http://routerluci.fw:8080
 ```
 There are plenty of tutorials on how to use ports<1024 (SETCAP port redir etc), but it may not worth the effort. It offers a minor improvement but involves manipulating files and services as root, adding to the complexity and creating security considerations.
 
-
-### running the program
-When you configure the "forwardings.json" you have to run it manually to check the output. Add one entry at a time.
-If you are in constant need of the port forward facility, ie to use your printer then put the program in the list of the startup programs. If you put it in a cron startup script it wont run because it needs the DISPLAY environment variable. If you use ControlPanel->StartupApps it is ok. Redirect the output to a file to know what happens if you have problems.
 
 ## Security implications
 First of all, use the program at your own risk! Anything related to SSH with the wrong configuration can expose your appliances/PCs to the world. As sshportfw uses the standard openssh client, all the problems presented here are in fact ssh misconfiguration problems.
