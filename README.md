@@ -31,7 +31,14 @@ A Linux amd64 executable is included. It should run on every modern Linux for PC
 > go run *.go
 ```
 
-## Configuring the forwardings.json file
+### STEP 2 : Connect to every SSH server with command line BEFORE using this utility
+for example
+```
+> ssh router
+```
+accept the unknown host message (if this is the first time) and then logout. sshportfw will not try to connect to any unknown host
+
+### STEP3 : Configuring the forwardings.json file
 The program is looking for the file  ~/.congig/sshportfw/forwardings.json. It does not try to create it by itself. You can add entries for your devices in this file.
 
 A sample config looks like this: (You can copy-paste it and edit)
@@ -113,6 +120,8 @@ The "Host" can be the hostname(or the IPv4 or 6) or a **Host entry inside ~/.ssh
 
 The "forwardings.json" file is on purpose very simple and does not have any other options. All other entries (for example Username Hostname) ARE IGNORED. If you need more functionality it can be added in the powerfull "~/.ssh/config" file by creating a new "Host" entry
 
+
+
 ## Configuring the ~/.ssh/config
 
 ### Using a control socket
@@ -186,14 +195,8 @@ http://routerluci.fw:8080
 ```
 There are plenty of tutorials on how to use ports<1024 (SETCAP port redir etc), but it may not worth the effort. It offers a minor improvement but involves manipulating files and services as root, adding to the complexity and creating security considerations.
 
-# WARNING : connect to every server using ssh BEFORE using this utility
-for example
-```
-> ssh router
-```
-accept the unknown host message (if this is the first time) and then logout. sshportfw will not try to connect to any unknown host
 
-## running the program
+### running the program
 When you configure the "forwardings.json" you have to run it manually to check the output. Add one entry at a time.
 If you are in constant need of the port forward facility, ie to use your printer then put the program in the list of the startup programs. If you put it in a cron startup script it wont run because it needs the DISPLAY environment variable. If you use ControlPanel->StartupApps it is ok. Redirect the output to a file to know what happens if you have problems.
 
