@@ -113,7 +113,9 @@ The "Host" can be the hostname(or the IPv4 or 6) or a **Host entry inside ~/.ssh
 
 The "forwardings.json" file is on purpose very simple and does not have any other options. All other entries (for example Username Hostname) ARE IGNORED. If you need more functionality it can be added in the powerfull "~/.ssh/config" file by creating a new "Host" entry
 
-### SSH tip: using a control socket
+## Configuring the ~/.ssh/config
+
+### Using a control socket
 At the **END** of ~/.ssh/config you may want to add
 ```sh
 match host * # or for specific hosts only
@@ -128,7 +130,7 @@ match host * # or for specific hosts only
 The control socket makes subsequent connections very fast, but there are some considerations, see the manual.
 Do not put such global options at start because they cannot be overriden by subsequent entries.
 
-## ssh Tip: Access your devices sometimes from inside of the LAN and sometimes from the outside world.
+### Access your devices sometimes from inside of the LAN and sometimes from the outside world.
 Most LANs have a public IPV4 address and private(NAT) IPV4 addresses for all devices inside the LAN. Let's suppose we have a Raspberry Pi with **static** private LAN address 10.6.3.2(rpi.lan) We set up port forwarding on our router and we can access our Rpi from outside using mydynamicip.freemyip.com:2002(WARNING this topic is not explained here find instructions for your router)
 We want ssh (and sshportfw) to connect to this device(Rpi) even when using our laptop outside of our home.
 An entry like this in ~/.ssh/config will do the trick **automatically**
@@ -150,7 +152,7 @@ host rpi
 This rule can distinguish the network by the first 3 numbers of an IPv4. Of course we can detect another unique element of our network. Be careful here as a lot of NATs tend to use the 192.168.0.x or 192.168.1.x, and can be hard to distinguish them. It is probably beneficial to use less comman IP ranges.
 NOTE : If we have a range extender/second router giving a different subnet, the ssh config needs additional rules.
 
-## Tip: Access internel services using a jumphost
+### Access internel services using a jumphost
 If we can't or don't want to open a lot of ports to our router (see the previous example) we can use a jumphost
 ```sh
 match host rpi !exec "ip -4 a | grep -q 10.6.3."
@@ -165,7 +167,7 @@ match host rpi !exec "ip -4 a | grep -q 10.6.3."
 -v --version
 -s --syslog
 
-## Tip : Use hostnames instead of IP on browser.
+### Use hostnames instead of IP on browser.
 - We can edit /etc/hosts and add the line
   ```sh
   # This local port connects with the
@@ -175,7 +177,7 @@ match host rpi !exec "ip -4 a | grep -q 10.6.3."
   Now the service can be accessed by pointing our browser to "routerluci.fw:8080".
   NOTE: It may be tempting to put the DNS resolution(routerluci.fw in this case) to our OpenWRT router itself (hostnames section) but the hostnames will *not* be available when we are connected to another network, or if using a local resolver like dnscrypt-proxy which (at least by default) ignores the LAN resolver.
 
-## Bad tip: eliminate port specifiction in the browser URL
+### Eliminate port specifiction in the browser URL (probably a bad idea)
 ```url
 This means
 http://routerluci.fw  (The port is in fact 80)
