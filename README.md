@@ -31,7 +31,7 @@ A Linux amd64 executable is included. It should run on every modern Linux for PC
 > go run *.go
 ```
 
-## STEP 2. Configuring
+## Configuring the forwardings.json file
 The program is looking for the file  ~/.congig/sshportfw/forwardings.json. It does not try to create it by itself. You can add entries for your devices in this file.
 
 A sample config looks like this: (You can copy-paste it and edit)
@@ -107,14 +107,13 @@ A sample config looks like this: (You can copy-paste it and edit)
     ]
   }
 ]
-
 ```
 
 The "Host" can be the hostname(or the IPv4 or 6) or a **Host entry inside ~/.ssh/config** This is much preffered as we can use many ssh options (user, port jumphost and others). By pointing our browser to "http://127.0.14.1:8080" we can access LuCi on our router. Also, note that by playing with 127.x.x.x addresses we can use the same listening port (8080 in this case) with multiple entries. Note also that the browser may complain about "insecure connections". This is harmless, all traffic is tunnelled via ssh, and decrypted only at the remote host. To avoid true insecure connections (connections that transfer creartext data via the network), the remote service must be blocked using the (remote) firewall and only be accessible via the "lo" interface
 
 The "forwardings.json" file is on purpose very simple and does not have any other options. All other entries (for example Username Hostname) ARE IGNORED. If you need more functionality it can be added in the powerfull "~/.ssh/config" file by creating a new "Host" entry
 
-## ssh Tip: using a control socket
+### SSH tip: using a control socket
 At the **END** of ~/.ssh/config you may want to add
 ```sh
 match host * # or for specific hosts only
