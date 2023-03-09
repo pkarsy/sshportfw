@@ -141,7 +141,7 @@ Do not put such global options at start because they cannot be overriden by subs
 ### Access your devices sometimes from inside of the LAN and sometimes from the outside world.
 Most LANs have a public IPV4 address and private(NAT) IPV4 addresses for all devices inside the LAN. Let's suppose we have a Raspberry Pi with **static** private LAN address 10.6.3.2(rpi.lan) We set up port forwarding on our router and we can access our Rpi from outside using mydynamicip.freemyip.com:2002(WARNING this topic is not explained here find instructions for your router)
 We want ssh (and sshportfw) to connect to this device(Rpi) even when using our laptop outside of our home.
-An entry like this in ~/.ssh/config will do the trick **automatically**
+An entry like this in ~/.ssh/config will do the trick :
 
 
 ```sh
