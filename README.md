@@ -231,14 +231,14 @@ First of all, use the program at your own risk! Anything related to SSH with the
 Security keys such as [Yubico](https://www.yubico.com/) [Solokey](https://solokeys.com/) or [GNUK](http://www.fsij.org/category/gnuk.html) can offer enhanced security without the need to type passphrases. The private key is stored on the hardware token and the token is designed to perform specific cryptographic operations with it, but never allow (the private key) to escape from the device. Note that dropbear SSH server (used by OpenWRT) cannot handle FIDO private keys (those with -sk suffix). You have to install and configure the OpenSSH server for this purpose. GNUK uses normal ssh keys but it is somewhat difficult to build the hardware and configure the system. Also, the more expensive tokens like Ybikey offer authentication methods compatible with dropbear. Do your research and keep in mind that you need 2 of them, the one is the backup if you lose the other.
 
 ### Other platforms
-The program is pure Go(golang) and is trivial to compile (and cross-compile) for any supported platform. It is only tested on Linux however. If you can run the application successfully on a mac or windows send me the instructions to include in this document.
+The program is pure Golang and is trivial to compile and cross-compile for any supported platform. It is only tested on Linux however. If you can run the application successfully on a Mac or Windows send me the instructions to include in this document.
 
 ### Alternative solutions
-No need to read all this, just for completeness. The (many) problems with the these solutions are the reason sshportfw was created.
+No need to read all this, just for completeness. The (many) problems with these solutions are the reason sshportfw was created.
 
 
-### Solution 1: plain ssh with forwarding rules in ~/.ssh/config or directly on command line
-This is the method used by most people. If there are a lot of rules however, this repeating process becomes tiring and error-prone.
+### Solution 1: plain ssh with forwarding rules in ~/.ssh/config or directly on the command line
+This is the method used by most people. If there are a lot of rules, however, this repeating process becomes tiring and error-prone. And the job of sshportfw is to automate this process.
 
 ### Solution 2: VPN (Not the anonymizing providers, but self-hosted mesh overly networks)
 I tried [Zerotier](https://www.zerotier.com/) and [Nebula](https://github.com/slackhq/nebula). For complex setups with multiple internal (NAT) network docker instances or virtual machines,  VPN probably is the way to go.
@@ -256,7 +256,7 @@ and configure a printer setup pointing to 127.0.7.1:6000 IPP port TODO fix IP. A
 - requires additional software to be installed on every node. The software may not be available for some platforms. And for many OpenWRT routers, there is not enough free space. Most routers have only enough flash to store their proprietary firmware. One example I have is the Xiaomi Mi gigabit edition. It is very fast, with enough RAM, easily sustains 300Mbps traffic, and can run OpenWRT perfectly, but has only 8GB flash.
 
 ### Solution 3: Securing the web interface with SSL/TLS
-Many services such as OpenWrt uhttpd or many network printers allow secure connections over SSL/TLS. With this method, we forget about both VPN and SSH port forwarding and we connect directly to the server. Again there are many (fatal in opinion) problems.
+Many services such as OpenWrt uhttpd or many network printers allow secure connections over SSL/TLS. With this method, we forget about both VPN and SSH port forwarding and we connect directly to the server. Again there are many and severe problems.
 
 - Many web interfaces of routers, smart switches and other appliances, do not offer the option for SSL
 
