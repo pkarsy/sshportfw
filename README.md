@@ -31,7 +31,7 @@ A Linux amd64 executable is included. It should run on every modern Linux for PC
 > go run *.go
 ```
 
-### STEP2: Editing the forwardings.json file
+### STEP 2: Editing the forwardings.json file
 The program is looking for the file  
 
 ```sh
