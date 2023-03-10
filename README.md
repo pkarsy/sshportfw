@@ -234,7 +234,7 @@ No need to read all this, just for completeness. The (many) problems with the th
 
 
 ### Solution 1: plain ssh with forwarding rules in ~/.ssh/config or directly on command line
-This is the method I used for a lot of time, however, if there are a lot of rules, the manual process becomes time consuming and error-prone.
+This is the method used by most people, If there are a lot of rules however, this repeating process becomes tiring and error-prone.
 
 ### Solution 2: VPN (Not the anonymizing providers but self-hosted mesh VPNs)
 I tried [Zerotier](https://www.zerotier.com/) and [Nebula](https://github.com/slackhq/nebula). For complex setups with multiple internal (NAT) network docker instances or virtual machines,  VPN probably is the way to go.
