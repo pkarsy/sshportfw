@@ -144,7 +144,7 @@ The next sections are about configuring ssh to make sshportfw more useful.
 ## Adding functionality: Configuring the ~/.ssh/config
 
 ### ~/.ssh/config: Using a control socket
-At the **END** of ~/.ssh/config you may want to add
+At the **END** of ~/.ssh/config, you may want to add
 ```sh
 match host * # or for specific hosts only
     # user root
@@ -220,7 +220,7 @@ There are plenty of tutorials on how to use ports<1024 (SETCAP port redir etc), 
 
 ## Security
 First of all, use the program at your own risk! Anything related to SSH with the wrong configuration can expose your appliances/PCs to the world.
-- On a system with multiple users, all users with a shell will have access to the remote services, at least to the login page. The program is designed to be used from your own trusted PC/laptop, not from a shared computer at work/university. The use of an SSH client in a machine that is not yours is a security risk anyway. Of course, this depends on how important the server is.
+- On a system with multiple users, all users with a shell will have access to the remote services, at least to the login page. The program is designed to be used from your trusted PC/laptop, not from a shared computer at work/university. The use of an SSH client in a machine that is not yours is a security risk anyway. Of course, this depends on how important the server is.
 - The ssh command keeps the SSH connection open as long as there are active forwardings (This can be very long) but ever after this, the program keeps the connection open if you use the ConrolSocket option. After this, the SSH connection is closed and you will need to re-login (ie you need to touch again your youbikey) to use the service.
 - Password-based authentication must be avoided (Easily stolen and guessed !). And file-based private ssh keys (those in ~/.ssh/) can be copied and used without you noticing. A hardware security key is the real solution.
 
@@ -250,7 +250,7 @@ To print from home with SSH all we need to do is
 ssh -L127.0.7.1:6000:192.168.6.25:661
 and configure a printer setup pointing to 127.0.7.1:6000 IPP port TODO fix IP. A VPN though allows us to reach only the RPi, not the printer, and RPi need to have additional rules for port forwarding or run a redirecting daemon as rinetd, a very awkward and complex solution.
 - debugging VPN problems can become very difficult, as every node can be accessed effectively in 2 different ways through the normal IP or the VPN one. It is not uncommon, for traffic designed to pass through a real interface, to go via VPN or vice versa, or for the VPN to not work due to firewall rules (real firewall or virtual!)
-- requires additional software to be installed on every node. The software may not be available for some platforms. And for many OpenWRT routers, there is not enough free space. Most routers have only enough flash to store their own proprietary firmware. One example I have is the Xiaomi Mi gigabit edition. It is very fast, with enough RAM, easily sustains 300Mbps traffic, and can run OpenWRT perfectly, but has only 8GB flash.
+- requires additional software to be installed on every node. The software may not be available for some platforms. And for many OpenWRT routers, there is not enough free space. Most routers have only enough flash to store their proprietary firmware. One example I have is the Xiaomi Mi gigabit edition. It is very fast, with enough RAM, easily sustains 300Mbps traffic, and can run OpenWRT perfectly, but has only 8GB flash.
 
 ### Solution 3: Securing the web interface with SSL/TLS
 Many services such as OpenWrt uhttpd or many network printers allow secure connections over SSL/TLS. With this method, we forget about both VPN and SSH port forwarding and we connect directly to the server. Again there are many(fatal in opinion) problems.
