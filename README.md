@@ -230,10 +230,13 @@ First of all, use the program at your own risk! Anything related to SSH with the
 ### Security hardening: Yubikey, Solokey, GNUK
 Security keys such as [Yubico](https://www.yubico.com/) [Solokey](https://solokeys.com/) or [GNUK](http://www.fsij.org/category/gnuk.html) can offer enhanced security without the need to type passphrases. The private key is stored on the hardware token and the token is designed to perform specific cryptographic operations with it, but never allow (the private key) to escape from the device. Note that dropbear SSH server (used by OpenWRT) cannot handle FIDO private keys (those with -sk suffix). You have to install and configure the OpenSSH server for this purpose. GNUK uses normal ssh keys but it is somewhat difficult to build the hardware and configure the system. Also, the more expensive tokens like Ybikey offer authentication methods compatible with dropbear. Do your research and keep in mind that you need 2 of them, the one is the backup if you lose the other.
 
-### Other platforms
+## Bugs
+The testing is very limited, the program is used on a Linux Mint laptop using Ybico FIDO keys. If you find some bugs please report them in the issues section.
+
+## Other platforms
 The program is pure Golang and is trivial to compile and cross-compile for any supported platform. It is only tested on Linux however. If you can run the application successfully on a Mac or Windows send me the instructions to include in this document.
 
-### Alternative solutions
+## Alternative solutions
 No need to read all this, just for completeness. The (many) problems with these solutions are the reason sshportfw was created.
 
 
