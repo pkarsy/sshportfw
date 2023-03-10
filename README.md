@@ -127,7 +127,7 @@ The browser may complain about "insecure connections". This is harmless (I am no
 The "forwardings.json" file is on purpose very simple and does not have any other functionality. All other options (for example Username Hostname) are ignored. For all other possibilities, the powerful "~/.ssh/config" file can be used by creating a new "Host" entry.
 
 
-### STEP 3: login to every SSH server with the command line BEFORE using this run the program
+### STEP 3: login to every SSH server with the command line BEFORE run
 for example
 ```sh
 > ssh router # The same host as the host inside forwardings.json
