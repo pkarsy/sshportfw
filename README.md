@@ -45,11 +45,10 @@ The program is looking for the file
 ~/.config/sshportfw/forwardings.json
 ```
 
-It does not try to create it by itself. You can add entries for your 
-devices in this file.
+It does not try to create it by itself.
 
 A sample config follows so you can copy-paste and edit it. This config assumes a router at 10.5.2.1
-and the other LAN devices to have 10.5.2.X addresses. Also, we assume that local DNS is working, for example, kyocera or kyocera.lan resolve to the IP of the device. You can completely ignore DNS by using the IP addresses.
+and the other LAN devices to have 10.5.2.X addresses. Also, we assume that local DNS is working, for example, router or router.lan resolve to 10.5.2.1. You can completely ignore DNS by using the IP addresses. So instead of "router" use "10.5.2.1"
 
 ```json
 [
