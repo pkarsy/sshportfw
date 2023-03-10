@@ -125,24 +125,23 @@ and the other LAN devices to have 10.5.2.X addresses. Also we assume that local 
 ]
 ```
 
-The "Host" can be the hostname(or the IP) or a **Host entry inside ~/.ssh/config** This is much preffered as we can use many ssh options (user, port jumphost and others).
+The "Host" can be the hostname(or the IP) or a **Host entry inside ~/.ssh/config** This is much preferred as we can use many ssh options (user, port jumphost and others).
+The program listens to "ListenAddr": "127.0.10.1:8080" etc. but does not try to connect to any SSH server until we point our browser to  "http://127.0.10.1:8080" . Then sshportfw uses the ssh client to connect to router and forward the local data to 127.0.0.1:80 on the remote machine, The LuCi configuration page in this case.
 
-By pointing our browser to "http://127.0.14.1:8080" we can access LuCi on our router.
+The browser may complain about "insecure connections". This is harmless (I am not a security expert, so no guarantees), and all traffic is tunneled via ssh and decrypted only at the remote host. To avoid true insecure connections (connections that transfer cleartext data via the network), the remote service must be blocked using the remote firewall and only be accessed via the remote "lo" interface
 
-Note also that the browser may complain about "insecure connections". This is harmless (I am not a security expert, so no guaranties), all traffic is tunnelled via ssh, and decrypted only at the remote host. To avoid true insecure connections (connections that transfer creartext data via the network), the remote service must be blocked using the remote firewall and only be accessible via the remote "lo" interface
-
-The "forwardings.json" file is on purpose very simple and does not have any other options. All other options (for example Username Hostname) are ignored. For more functionality, the powerfull "~/.ssh/config" file can be used by creating a new "Host" entry.
+The "forwardings.json" file is on purpose very simple and does not have any other functionality. All other options (for example Username Hostname) are ignored. For all other possibilities, the powerfull "~/.ssh/config" file can be used by creating a new "Host" entry.
 
 
-### STEP 4 : running the program
+### STEP 4: running the program
 When you configure the "forwardings.json" you have to run it manually to check the output.
-If you are in constant need of the port forward facility, ie to use your printer then put the program in the list of the startup programs. If you put it in a cron startup script it wont run because it needs the DISPLAY environment variable. If you use ControlPanel->StartupApps it is ok. Redirect the output to a file to know what happens if you have problems, or use the --syslog flag.
+If you are in constant need of the port forward facility, ie to use your printer then put the program in the list of the startup programs. If you put it in a cron startup script it won't run because it needs the DISPLAY environment variable. If you use ControlPanel->StartupApps it is ok. Redirect the output to a file to know what happens if you have problems, or use the --syslog flag.
 
-This is all the functionality sshportfw has. The next sections are about configuring ssh in order to make sshportfw more useful.
+The next sections are about configuring ssh to make sshportfw more useful.
 
-## Adding functionality : Configuring the ~/.ssh/config
+## Adding functionality: Configuring the ~/.ssh/config
 
-### ~/.ssh/config : Using a control socket
+### ~/.ssh/config: Using a control socket
 At the **END** of ~/.ssh/config you may want to add
 ```sh
 match host * # or for specific hosts only
@@ -157,7 +156,7 @@ match host * # or for specific hosts only
 The control socket makes subsequent connections very fast, but there are some drawbacks, see the manual.
 Do not put such global options at the beginning of the file, because they cannot be overridden by subsequent entries.
 
-### ~/.ssh/config : Access LAN devices from outside.
+### ~/.ssh/config: Access LAN devices from outside.
 Most LANs have a public IPV4 address and private(NAT) IPV4 addresses for all devices inside the LAN. Let's suppose we have a Raspberry Pi with **static** private LAN address 10.5.2.2(rpi.lan) We can set up port forwarding on our router and we can access our Rpi from outside using mydynamicip.freemyip.com:2002 (this topic is not explained, here find instructions for your router)
 We want ssh (and sshportfw) to connect to this device(Rpi) even when using our laptop outside of our home.
 An entry like this in ~/.ssh/config will do the trick :
@@ -179,7 +178,7 @@ host rpi
 This rule can detect network 10.5.2.XX and act accordingly. Of course, we can detect another unique element of our network. Be careful here as a lot of NATs tend to use the 192.168.0.x or 192.168.1.x, and can be hard to distinguish them. It is probably beneficial to use less common IP ranges.
 NOTE: If we have a range extender/second router giving a different subnet, the ssh config needs additional rules.
 
-### ~/.ssh/config : Access firewalled services using a jumphost
+### ~/.ssh/config: Access firewalled services using a jumphost
 If we can't or don't want to open a lot of ports to our router (see the previous example) we can use a jumphost
 ```sh
 match host router !exec "ip -4 a | grep -q 10.5.2."
