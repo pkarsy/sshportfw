@@ -194,7 +194,7 @@ match host router !exec "ip -4 a | grep -q 10.5.2."
 
 
 ## command line
-Only these are availabe
+Only these are available:
 -v --version
 -s --syslog
 
