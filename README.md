@@ -256,7 +256,7 @@ and configure a printer setup pointing to 127.0.7.1:6000 IPP port TODO fix IP. A
 - requires additional software to be installed on every node. The software may not be available for some platforms. And for many OpenWRT routers, there is not enough free space. Most routers have only enough flash to store their proprietary firmware. One example I have is the Xiaomi Mi gigabit edition. It is very fast, with enough RAM, easily sustains 300Mbps traffic, and can run OpenWRT perfectly, but has only 8GB flash.
 
 ### Solution 3: Securing the web interface with SSL/TLS
-Many services such as OpenWrt uhttpd or many network printers allow secure connections over SSL/TLS. With this method, we forget about both VPN and SSH port forwarding and we connect directly to the server. Again there are many(fatal in opinion) problems.
+Many services such as OpenWrt uhttpd or many network printers allow secure connections over SSL/TLS. With this method, we forget about both VPN and SSH port forwarding and we connect directly to the server. Again there are many (fatal in opinion) problems.
 
 - Many web interfaces of routers, smart switches and other appliances, do not offer the option for SSL
 
