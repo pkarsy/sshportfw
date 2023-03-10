@@ -31,14 +31,7 @@ A Linux amd64 executable is included. It should run on every modern Linux for PC
 > go run *.go
 ```
 
-### STEP 2: login to every SSH server with the command line BEFORE using this utility
-for example
-```sh
-> ssh router # The same host as the host inside forwardings.json
-```
-accept the unknown host message (if this is the first time and after you verify you are connected to the correct host) and then logout. If the host is unknown at the time sshportfw runs the command, the connection will fail unless you notice the message and answer accordingly.
-
-### STEP3: Editing the forwardings.json file
+### STEP2: Editing the forwardings.json file
 The program is looking for the file  
 
 ```sh
@@ -132,6 +125,16 @@ The program listens to "ListenAddr": "127.0.10.1:8080" etc. but does not try to 
 The browser may complain about "insecure connections". This is harmless (I am not a security expert, so no guarantees), and all traffic is tunneled via ssh and decrypted only at the remote host. To avoid true insecure connections (connections that transfer cleartext data via the network), the remote service must be blocked using the remote firewall and only be accessed via the remote "lo" interface
 
 The "forwardings.json" file is on purpose very simple and does not have any other functionality. All other options (for example Username Hostname) are ignored. For all other possibilities, the powerful "~/.ssh/config" file can be used by creating a new "Host" entry.
+
+
+### STEP 3: login to every SSH server with the command line BEFORE using this run the program
+for example
+```sh
+> ssh router # The same host as the host inside forwardings.json
+# Or if inside forwardings.json the server is "10.5.2.1"
+> ssh 10.5.2.1
+```
+accept the unknown host message (if this is the first time and after you verify you are connected to the correct host) and then logout. If the host is unknown at the time sshportfw runs the command, the connection will fail unless you notice the message and answer accordingly.
 
 
 ### STEP 4: running the program
