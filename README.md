@@ -248,7 +248,7 @@ I tried [Zerotier](https://www.zerotier.com/) and [Nebula](https://github.com/sl
 
 There are many downsides, however :
 - Many VPNs will only work if an Internet connection is available. **Even if we try to access a local node!** However, we mostly need access to our OpenWrt router **exactly** when there are problems on our network. The VPN works when we don't need it and stops working the exact moment we need it!
-- Remote services are available all the time, not a good security practice. With port forwarding, there is better control. We know if and when the service is used, we need to press the security key for example.
+- Remote services are exposed constantly, not a good security practice. With port forwarding, there is better control. We know if and when the service is used, we need to press the security key for example.
 - A VPN requires careful setup, especially firewall setup *usually in a custom VPN firewall language.* This is _very_ time-consuming and there is always the danger that something is wrong, allowing unauthorized access to our network. The firewall (the normal one, not the virtual) need also rules to accept traffic from the TUN/TAP interface.
 - The servers(ie uhttpd) on the remote machines need config modifications. An OpenWRT router needs to have uhttpd accept connections from the virtual network (typically a tun device) This means modifications to the OpenWRT firewall *and* to uhttpd config file.
 - If the service you want to use is not hosted on the same server as the VPN node, then the VPN alone cannot help you. You need custom port forwarding rules. For example, a network printer(192.168.6.25) at work is connected to the same network as the Raspberry Pi (192.168.6.2). At home, we can access the Rpi either via VPN or SSH.
