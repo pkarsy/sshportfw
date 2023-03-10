@@ -96,6 +96,7 @@ and the other LAN devices to have 10.5.2.X addresses. Also, we assume that local
   },
   {
     "Host": "openwrt2",
+    "Comment": "Printer1 and Printer2 are connected to and only accessibe via openwrt2",
     "Forward": [
       {
         "Service": "LuCi",
@@ -105,12 +106,12 @@ and the other LAN devices to have 10.5.2.X addresses. Also, we assume that local
       {
         "Service": "Printer1 GUI",
         "ListenAddr": "127.0.14.2:8080",
-        "RemoteAddr": "printer1.lan:8080"
+        "RemoteAddr": "printer1.lan:80"
       },
       {
         "Service": "Printer2 GUI",
         "ListenAddr": "127.0.14.3:8080",
-        "RemoteAddr": "printer2.lan:8080"
+        "RemoteAddr": "printer2.lan:80"
       }
     ]
   }
