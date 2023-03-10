@@ -1,19 +1,19 @@
 # sshportfw
 
-A program doing automatic SSH port forwarding whenever we need to access our SSH-secured network appliances and servers. The audience is users/administrators which heavily rely on ssh to access remote devices.
+A program doing automatic SSH port forwarding whenever we need to access our SSH-secured network appliances and servers. The audience is users/administrators who heavily rely on ssh to access remote devices.
 
 
-Typically port forwarding is used to access [OpenWRT](https://openwrt.org/) routers, [Syncthing](https://syncthing.net/) web interfaces, Print pages, and in general services that (due to security reasons) can only serve the localhost interface. Not only that, the ssh config file is very powerfull and allows to bypass firewalls, accessing remotelly and securelly print queues etc, and all that with a security, maturity and flexibility not comparable with any other software.
+Typically port forwarding is used to access [OpenWRT](https://openwrt.org/) routers, [Syncthing](https://syncthing.net/) web interfaces, Print pages, and in general services that (due to security reasons) can only serve the localhost interface. Not only that, the ssh config file is very powerful and allows bypassing firewalls, accessing remotely and securely print queues etc, and all that with security, maturity and flexibility not comparable with any other software.
 
 The idea is to have sshportfw listening to local addresses such as *127.0.5.1:8080*. When we point our browser to this address, openssh client is called automatically and connects to our OpenWRT router. The same thing can be achieved with the command (must be executed BEFORE we open the web page)
 ```sh
 > ssh -L127.0.5.1:8080:127.0.0.1:80 router  # (or the IP)
 ```
-but with sshportfw the process becomes automatic. ssportfw calls ssh to do the actual forwarding so some expertice of configuring the ~/.ssh/config is necessary. Note however that you do NOT need to configure port forwardings inside ~/.ssh/config. The file ~/.config/sshportfw/forwardings.json is used as we will see.
+but with sshportfw the process becomes automatic. ssportfw calls ssh to do the actual forwarding so some expertise in configuring the ~/.ssh/config is necessary. Note however that you do NOT need to configure port forwardings inside ~/.ssh/config. The file ~/.config/sshportfw/forwardings.json is used as we will see.
 
-## STEP 1 : Installation of the binary
+## STEP 1: Installation of the binary
 Note that the program is only tested on Linux.
-A Linux amd64 executable is included. It should run on every modern Linux for PC. It can probably work on other platforms (after a compile), but it is not tested. See **Other platforms** below
+A Linux amd64 executable is included. It should run on every modern Linux for PC. It can probably work on other platforms (after a compilation), but it is not tested. See **Other platforms** below
 ```sh
 > git clone https://github.com/pkarsy/sshportfw
 > cd sshportfw
@@ -31,14 +31,14 @@ A Linux amd64 executable is included. It should run on every modern Linux for PC
 > go run *.go
 ```
 
-### STEP 2 : login to every SSH server with command line BEFORE using this utility
+### STEP 2: login to every SSH server with the command line BEFORE using this utility
 for example
 ```sh
 > ssh router # The same host as the host inside forwardings.json
 ```
-accept the unknown host message (if this is the first time and after you verify you are connection to the correct host) and then logout. If the host is unknown the time sshportfw runs the command, the connection will fail unless you notice the message and answer accordingly.
+accept the unknown host message (if this is the first time and after you verify you are connected to the correct host) and then logout. If the host is unknown at the time sshportfw runs the command, the connection will fail unless you notice the message and answer accordingly.
 
-### STEP3 : Editing the forwardings.json file
+### STEP3: Editing the forwardings.json file
 The program is looking for the file  
 
 ```sh
@@ -49,7 +49,7 @@ It does not try to create it by itself. You can add entries for your
 devices in this file.
 
 A sample config follows so you can copy-paste and edit it. This config assumes a router at 10.5.2.1
-and the other LAN devices to have 10.5.2.X addresses. Also we assume that local DNS is working, for example kyocera or kyocera.lan resolve to the IP of the device. You can completly ignore DNS by using the IP addresses.
+and the other LAN devices to have 10.5.2.X addresses. Also, we assume that local DNS is working, for example, kyocera or kyocera.lan resolve to the IP of the device. You can completely ignore DNS by using the IP addresses.
 
 ```json
 [
@@ -125,12 +125,14 @@ and the other LAN devices to have 10.5.2.X addresses. Also we assume that local 
 ]
 ```
 
-The "Host" can be the hostname(or the IP) or a **Host entry inside ~/.ssh/config** This is much preferred as we can use many ssh options (user, port jumphost and others).
-The program listens to "ListenAddr": "127.0.10.1:8080" etc. but does not try to connect to any SSH server until we point our browser to  "http://127.0.10.1:8080" . Then sshportfw uses the ssh client to connect to router and forward the local data to 127.0.0.1:80 on the remote machine, The LuCi configuration page in this case.
+The "Host" can be the hostname(or the IP) or a **Host entry inside ~/.ssh/config**  (this is the preferred approach as we will see)
+
+
+The program listens to "ListenAddr": "127.0.10.1:8080" etc. but does not try to connect to any SSH server until we point our browser to  "http://127.0.10.1:8080". Then sshportfw uses the ssh client to connect to router and forward the local data to 127.0.0.1:80 on the remote machine, The LuCi configuration page in this case.
 
 The browser may complain about "insecure connections". This is harmless (I am not a security expert, so no guarantees), and all traffic is tunneled via ssh and decrypted only at the remote host. To avoid true insecure connections (connections that transfer cleartext data via the network), the remote service must be blocked using the remote firewall and only be accessed via the remote "lo" interface
 
-The "forwardings.json" file is on purpose very simple and does not have any other functionality. All other options (for example Username Hostname) are ignored. For all other possibilities, the powerfull "~/.ssh/config" file can be used by creating a new "Host" entry.
+The "forwardings.json" file is on purpose very simple and does not have any other functionality. All other options (for example Username Hostname) are ignored. For all other possibilities, the powerful "~/.ssh/config" file can be used by creating a new "Host" entry.
 
 
 ### STEP 4: running the program
