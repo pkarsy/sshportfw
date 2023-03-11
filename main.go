@@ -56,11 +56,13 @@ func flagParse() {
 	flag.BoolVar(&version, "v", false, "")
 	flag.BoolVar(&syslogOutput, "syslog", false, "redirects output to syslog")
 	flag.BoolVar(&syslogOutput, "s", false, "")
+	flag.Parse()
 	if version {
 		fmt.Println("sshportfw Version 0.6.0")
 		os.Exit(0)
 	}
 	if syslogOutput {
+		log.Print("SYSLOG output")
 		// Configure logger to write to the syslog
 		logwriter, err := syslog.New(syslog.LOG_NOTICE, Appname)
 		if err == nil {
