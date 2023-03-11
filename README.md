@@ -119,7 +119,7 @@ and the other LAN devices to have 10.5.2.X addresses. Also, we assume that local
 ]
 ```
 
-The "Host" can be the hostname(or the IP) or a **Host entry inside ~/.ssh/config**  (this is the preferred approach)
+The "Host" can be the hostname(or the IP) or "user@host" or a **Host entry inside ~/.ssh/config**  (this is the preferred approach)
 
 
 The program listens to "ListenAddr": "127.0.10.1:8080" etc. but does not try to connect to any SSH server until we point our browser to  "http://127.0.10.1:8080". Then sshportfw uses the ssh client to connect to router and forward the local data to 127.0.0.1:80 on the remote machine, the LuCi configuration page in this case.
