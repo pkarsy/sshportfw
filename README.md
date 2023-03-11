@@ -129,8 +129,7 @@ The browser may complain about "insecure connections". This is harmless (I am no
 The "forwardings.json" file is on purpose very simple and does not have any other functionality. All other options (for example Username Hostname and of course Comment) are ignored. For all other possibilities, the powerful "~/.ssh/config" file can be used by creating a new "Host" entry.
 
 
-### STEP 3: login to every SSH server with the command line BEFORE run
-for example
+### STEP 3: login to every SSH server manually using the command line
 ```sh
 > ssh router # The same host as the host inside forwardings.json
 # Or if inside forwardings.json the server is "10.5.2.1"
@@ -244,7 +243,7 @@ No need to read all this, just for completeness. The (many) problems with these 
 ### Solution 1: plain ssh with forwarding rules in ~/.ssh/config or directly on the command line
 This is the method used by most people. If there are a lot of rules, however, this repeating process becomes tiring and error-prone. And the job of sshportfw is to automate this process.
 
-### Solution 2: VPN (Not the anonymizing providers, but self-hosted mesh overly networks)
+### Solution 2: VPN (Not the anonymizing providers, but self-hosted mesh overlay networks)
 I tried [Zerotier](https://www.zerotier.com/) and [Nebula](https://github.com/slackhq/nebula). For complex setups with multiple internal (NAT) network docker instances or virtual machines,  VPN probably is the way to go.
 
 There are many downsides, however :
