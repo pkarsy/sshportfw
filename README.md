@@ -126,7 +126,7 @@ The program listens to "ListenAddr": "127.0.10.1:8080" etc. but does not try to 
 
 The browser may complain about "insecure connections". This is harmless (I am not a security expert, so no guarantees), as all traffic is tunneled via ssh and decrypted only at the remote host. To avoid true insecure connections (connections that transfer cleartext data via the network and/or do not check the authenticity of the peer), the remote service must be blocked using the remote firewall and only can be accessible via the remote "lo" interface.
 
-The "forwardings.json" file is on purpose very simple and does not have any other functionality. All other options (for example Username Hostname) are ignored. For all other possibilities, the powerful "~/.ssh/config" file can be used by creating a new "Host" entry.
+The "forwardings.json" file is on purpose very simple and does not have any other functionality. All other options (for example Username Hostname and of course Comment) are ignored. For all other possibilities, the powerful "~/.ssh/config" file can be used by creating a new "Host" entry.
 
 
 ### STEP 3: login to every SSH server with the command line BEFORE run
