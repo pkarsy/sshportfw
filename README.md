@@ -13,7 +13,7 @@ but with sshportfw the process becomes automatic. ssportfw calls ssh to do the a
 
 Typically port forwarding is used to access [OpenWRT](https://openwrt.org/) routers, [Syncthing](https://syncthing.net/) web interfaces, Printer pages, and in general services that (due to security reasons) can only serve the localhost interface. Not only that, the ssh config file is very powerful and allows bypassing firewalls, accessing remote print queues etc, and all that with security, maturity and flexibility not comparable with any other software.
 
-## STEP 1: Installation of the binary
+## STEP 1: Installation of the executable
 Note that the program is only tested on Linux.
 A Linux amd64 executable is included on the Releases page. It should run on every modern Linux for PC. It can probably work on other platforms (after a compilation), but it is not tested. See **Other platforms** below
 ```sh
