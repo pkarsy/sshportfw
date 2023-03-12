@@ -3,7 +3,7 @@
 A program doing automatic SSH port forwarding whenever we need to access our SSH-secured network appliances and servers. The audience is users/administrators who heavily rely on ssh to access remote devices.
 In this document, we take the approach that we want to access all appliances via SSH even if they are on the same network as our workstation.
 
-The idea is to have sshportfw listening to local addresses such as *127.0.5.1:8080*. When we point our browser to this address, openssh client is called automatically and connects to our OpenWRT router. The same thing can be achieved with the command (must be executed BEFORE we open the web page)
+The idea is to have sshportfw listening to local addresses such as 127.0.5.1:8080. When we point our browser to this address, openssh client is called automatically and connects to our OpenWRT router. The same thing can be achieved with the command (must be executed BEFORE we open the web page)
 ```sh
 > ssh -L127.0.5.1:8080:127.0.0.1:80 router  # (or the IP)
 ```
@@ -17,17 +17,16 @@ Typically port forwarding is used to access [OpenWRT](https://openwrt.org/) rout
 Note that the program is only tested on Linux.
 A Linux amd64 executable is included on the Releases page. It should run on every modern Linux for PC. It can probably work on other platforms (after a compilation), but it is not tested. See **Other platforms** below
 ```sh
+# Download the executable from the latest release and
+> chmod +x ssportfw
+# Copy/move the "sshportfw" binary somewere in the PATH
+# Or if you have git and golang installed
 > git clone https://github.com/pkarsy/sshportfw
 > cd sshportfw
-# Copy the "sshportfw" binary somewere in the PATH
-# such as ~/bin or /usr/local/bin/
-# then simply run
-# sshportfw
-# Or build the binary yourself
 > go build
-> ./sshportfw
+> ./sshportfw [options]
 # Or compile and run in 1 step
-> go run *.go
+> go run *.go [options]
 ```
 
 ### STEP 2: Editing the forwardings.json file
