@@ -25,7 +25,7 @@ const (
 	ForwardingsPath = "forwardings.json"
 )
 
-// global variables are bad but given how simple the program is, lets accept 2
+// global variables are bad but given how simple the program is, lets accept 2 of them
 var routineCount = safeCounter.New()
 var activeRoutines = safeCounter.New()
 
