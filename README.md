@@ -46,7 +46,7 @@ and the other LAN devices to have 10.5.2.X addresses. Also, we assume that local
   {
     "Host": "router",
     "Comment":"Gets internet(PPPOE) from the providers modem",
-    "Comment2":"In fact we can have as meny comments as we like",
+    "Comment2":"We can have as many comments as we like",
     "Forward": [
       {
         "Service": "LuCi",
