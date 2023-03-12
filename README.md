@@ -197,9 +197,25 @@ match host router !exec "ip -4 a | grep -q 10.5.2."
 
 
 ## command line
-Only these are available:
--v --version
--s --syslog
+```sh
+> sshportfw -h
+
+-l	
+-lines
+    Print source code line numbers for debugging
+-o string
+-output string
+    Redirect output to file, only messages from ssh client are displayed to console. Use -o /dev/null for quiet operation
+-s	
+-syslog
+    redirects output to syslog
+-t	
+-time
+    Print date and time for every line of output (ignored on syslog output)
+-v	
+-version
+    prints current sshportfw version
+```
 
 ### Use hostnames instead of IPs on the browser.
 - We can edit /etc/hosts and add the line
