@@ -14,18 +14,15 @@ but with sshportfw the process becomes automatic. ssportfw calls ssh to do the a
 
 ## STEP 1: Installation of the binary
 Note that the program is only tested on Linux.
-A Linux amd64 executable is included. It should run on every modern Linux for PC. It can probably work on other platforms (after a compilation), but it is not tested. See **Other platforms** below
+A Linux amd64 executable is included on the Releases page. It should run on every modern Linux for PC. It can probably work on other platforms (after a compilation), but it is not tested. See **Other platforms** below
 ```sh
 > git clone https://github.com/pkarsy/sshportfw
 > cd sshportfw
-# Run  the precompiled binary
-> ./sshportfw
 # Copy the "sshportfw" binary somewere in the PATH
 # such as ~/bin or /usr/local/bin/
 # then simply run
 # sshportfw
-#
-# or build the binary yourself
+# Or build the binary yourself
 > go build
 > ./sshportfw
 # Or compile and run in 1 step
