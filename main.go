@@ -69,7 +69,7 @@ func flagParse() {
 	flag.Parse()
 	currflags := 0
 	if version {
-		fmt.Println("sshportfw Version 0.6.2")
+		fmt.Println("sshportfw Version 0.6.3")
 		os.Exit(0)
 	}
 	if output != "" && syslogOutput {
@@ -103,7 +103,7 @@ func flagParse() {
 	log.SetFlags(currflags)
 }
 
-// Goroutine, takes a net.Conn spawns a ssh connection and bidirectionally transfers data
+// called as a Goroutine, takes a net.Conn, spawns a ssh connection and bidirectionally transfers data
 func sshInstance(localConn net.Conn, fw forwarding, host string) {
 	cmd := exec.Command("ssh", "-W", fw.RemoteAddr, host)
 	stdin, err := cmd.StdinPipe()
@@ -125,12 +125,15 @@ func sshInstance(localConn net.Conn, fw forwarding, host string) {
 
 		return
 	}
-	log.Printf("Start forwarding : %s %s", host, fw.Service)
-
+	log.Printf("#%d Start forwarding : %s %s", id, host, fw.Service)
+	// we use it to limit the exit message to just the first terminating goroutine
 	once := sync.Once{}
-	wg := sync.WaitGroup{} // We use it to wait for the goroutines
+	// We use it to wait for the goroutines
+	wg := sync.WaitGroup{}
+	// we will have 3 goroutines
 	wg.Add(3)
-	activeForwardings.Inc()
+	//active :=
+
 	go func() {
 		_, err := io.Copy(stdin, localConn)
 		localConn.Close() // we force the other io.Copy to terminate (reader)
@@ -139,11 +142,11 @@ func sshInstance(localConn net.Conn, fw forwarding, host string) {
 				log.Printf("#%d local --> remote : %q", id, err)
 			})
 		}
-		pr := cmd.Process
-		if pr != nil {
-			log.Print("Sending term signal")
+		/* pr := cmd.Process
+		 if pr != nil {
+			log.Printf("#%d Sending term signal to ssh client", id)
 			pr.Signal(syscall.SIGTERM)
-		}
+		} */
 		wg.Done()
 	}()
 	go func() {
@@ -154,31 +157,31 @@ func sshInstance(localConn net.Conn, fw forwarding, host string) {
 				log.Printf("#%d remote --> local : %q", id, err)
 			})
 		}
-		pr := cmd.Process
+		/* pr := cmd.Process
 		if pr != nil {
-			log.Print("Sending term signal")
+			log.Printf("#%d Sending term signal to ssh client", id)
 			pr.Signal(syscall.SIGTERM)
-		}
+		} */
 		wg.Done()
 	}()
 	go func() {
 		err = cmd.Wait()
 		if err != nil {
 			once.Do(func() {
-				log.Printf("#%d : command exit error %q", id, err)
+				log.Printf("#%d : %q", id, err)
 			})
 		}
 		localConn.Close()
 		wg.Done()
 	}()
 
-	log.Printf("Copy Routine #%d started", id)
-
+	log.Printf("#%d Copy routine started (total active %d)", id, activeForwardings.Inc())
+	// wait until all 3 goroutines are terminted
 	wg.Wait()
-	once.Do(func() {
-		log.Printf("ssh forwarder #%d ends", id)
-	})
-	log.Printf("Active SSH forwardings remaining : %d", activeForwardings.Dec())
+	//once.Do(func() {
+	log.Printf("#%d ssh forwarder ends (active remaining %d)", id, activeForwardings.Dec())
+	//})
+	//log.Printf("Active SSH forwardings remaining : %d")
 }
 
 // listens to a local port and whan a local connection occurs
@@ -208,7 +211,6 @@ func localPortListen(fw forwarding, host string) {
 			time.Sleep(time.Minute)
 			continue
 		}
-		// Transfer data from local to remote fw port and vice versa
 		go sshInstance(localConn, fw, host)
 	}
 }
@@ -216,7 +218,7 @@ func localPortListen(fw forwarding, host string) {
 func main() {
 	log.SetOutput(os.Stdout)
 	flagParse()
-	// The location of the config file
+	// The location of the config dir on linux is ~/.config/sshportfw
 	configPath := configdir.LocalConfig(Appname)
 	if err := configdir.MakePath(configPath); err != nil {
 		log.Print(err)
@@ -230,7 +232,7 @@ func main() {
 	{
 		lock := fslock.New("lock")
 		if err := lock.TryLock(); err != nil {
-			log.Print(err, "The program is probably already running")
+			log.Printf("%q : %s", err, "Check if the program is already running in another console or in the background.")
 			//log.Print("Already running")
 			os.Exit(1)
 		}
