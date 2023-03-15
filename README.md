@@ -132,7 +132,7 @@ The "forwardings.json" file is on purpose very simple and does not have any othe
 # Or if inside forwardings.json the server is "10.5.2.1"
 > ssh 10.5.2.1
 ```
-accept the unknown host message (if this is the first time and after you verify you are connected to the correct host) and then logout. If you skip this step, the connection will fail unless you notice the message and answer accordingly.
+accept the unknown host message (if this is the first time and after you verify you are connected to the correct host) and then logout. If you skip this step, the connection will fail unless you run the program interactively and you notice the message.
 
 
 ### STEP 4: running the program
