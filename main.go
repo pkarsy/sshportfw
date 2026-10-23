@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -109,11 +110,18 @@ const sshConnectTimeout = "10"
 // down does not flood the terminal each time the browser retries.
 const notifyInterval = time.Minute
 
+// set at build time with -ldflags "-X main.versionString=..."
+var versionString = "0.6.3"
+
 var (
 	// set from the command line before any goroutine starts
-	checkMode  bool
-	configFile string
-	sshBinary  = "ssh"
+	checkMode       bool
+	checkConfigMode bool
+	configFile      string
+	sshBinary       = "ssh"
+
+	// path of this executable, resolved once at startup and used by re-exec
+	selfPath string
 
 	// keeps the lock reachable for the lifetime of the process: a finalized
 	// os.File closes its descriptor, which would release the lock.
@@ -141,12 +149,13 @@ func flagParse() {
 	flag.BoolVar(&printtime, "time", false, "Print date and time for every line of output (ignored on syslog output)")
 	flag.BoolVar(&printtime, "t", false, "")
 	flag.BoolVar(&checkMode, "check", false, "Check every forwarding once and exit. One ssh connection is opened per service, so a security key may ask to be touched")
+	flag.BoolVar(&checkConfigMode, "check-config", false, "Parse the configuration file and exit; opens no listener and no ssh connection")
 	flag.StringVar(&configFile, "config", "", "Path of forwardings.json (default $XDG_CONFIG_HOME/sshportfw/forwardings.json)")
 	flag.StringVar(&sshBinary, "ssh", "ssh", "ssh client to execute")
 	flag.Parse()
 	currflags := 0
 	if version {
-		fmt.Println("sshportfw Version 0.6.3")
+		fmt.Println("sshportfw Version " + versionString)
 		os.Exit(0)
 	}
 	if output != "" && syslogOutput {
@@ -371,6 +380,14 @@ func main() {
 	if path == "" {
 		path = filepath.Join(configPath, ForwardingsPath)
 	}
+	// The path travels to the re-exec'd process, so make it independent of the
+	// working directory.
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		log.Print(err)
+		os.Exit(1)
+	}
+	path = absPath
 
 	// The SSH servers as defined in the config file
 	allServers, err := getServers(path)
@@ -380,8 +397,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	// -check only reports. It starts no listener and takes no lock, so it can
-	// run while the daemon is running.
+	// -check-config and -check only report. They start no listener and take no
+	// lock, so they can run while the daemon is running.
+	if checkConfigMode {
+		fmt.Printf("configuration %s OK: %d server(s), %d forwarding(s)\n", path, len(allServers), countForwardings(allServers))
+		return
+	}
 	if checkMode {
 		os.Exit(runChecks(path, allServers))
 	}
@@ -391,20 +412,28 @@ func main() {
 		os.Exit(1)
 	}
 	// Do not allow 2 instances of the program to run at the same time
-	instanceLock = fslock.New(filepath.Join(configPath, "lock"))
-	if err := instanceLock.TryLock(); err != nil {
+	if err := acquireLock(configPath); err != nil {
 		log.Printf("%q : %s", err, "Check if the program is already running in another console or in the background.")
 		os.Exit(1)
+	}
+	// The binary to run on SIGHUP, resolved once: a rebuild in place at this
+	// path is picked up, a change of the symlink that points here is not.
+	selfPath, err = os.Executable()
+	if err != nil {
+		log.Printf("Cannot determine the path of this executable, SIGHUP will only reload the configuration: %v", err)
 	}
 
 	// must have capacity of 1 accordig to docs
 	osSignal := make(chan os.Signal, 1)
-	// HUP causes the server to reread the config file
-	signal.Notify(osSignal, os.Interrupt, syscall.SIGHUP)
+	// HUP restarts the process with the binary on disk, USR1 reloads the
+	// configuration in place (live connections survive)
+	signal.Notify(osSignal, os.Interrupt, syscall.SIGHUP, syscall.SIGUSR1)
 	// these signals (in addition to SIGKILL) terminate the server
 	signal.Notify(osSignal, os.Interrupt, syscall.SIGTERM)
 	signal.Notify(osSignal, os.Interrupt, syscall.SIGABRT)
 	signal.Notify(osSignal, os.Interrupt, syscall.SIGINT)
+
+	log.Printf("%s version %s starting, %d forwarding(s) from %s", Appname, versionString, countForwardings(allServers), path)
 	for {
 		// We use this channel to signal the listening servers to terminate
 		cancel := make(chan struct{})
@@ -419,9 +448,74 @@ func main() {
 		}
 
 		// waiting a signal from the os
+	signals:
 		for {
 			sig := <-osSignal // we wait here until an OS signal is caught
-			if sig != syscall.SIGHUP {
+			switch sig {
+			case syscall.SIGHUP:
+				// Restart with the binary on disk, so an upgraded executable is
+				// used. Everything that can fail happens before the listeners
+				// and the lock are released.
+				log.Printf("Signal %q, restarting with the binary at %s", sig, selfPath)
+				updated, err := getServers(path)
+				if err != nil {
+					log.Print("Config file has errors, not restarting. Fix the errors and send SIGHUP again")
+					log.Print(err)
+					continue
+				}
+				if selfPath == "" {
+					log.Print("The path of this executable is unknown, reloading the configuration instead of restarting")
+					allServers = updated
+					close(cancel)
+					wg.Wait()
+					break signals
+				}
+				if err := preflight(path); err != nil {
+					log.Printf("The executable at %q did not accept the configuration, not restarting: %v", selfPath, err)
+					continue
+				}
+				// exec closes the pipes of the running ssh clients, so active
+				// forwardings cannot survive the restart.
+				log.Printf("Closing listening servers, %d active forwarding(s) will be dropped", activeForwardings.Value())
+				close(cancel)
+				wg.Wait()
+				// fslock opens the lock without O_CLOEXEC, so it has to be
+				// released explicitly or the new image would find itself
+				// locked out.
+				if err := instanceLock.Unlock(); err != nil {
+					log.Printf("Cannot release the lock: %v. Not restarting", err)
+					if err := acquireLock(configPath); err != nil {
+						log.Printf("Cannot take the lock back: %v. Exiting", err)
+						os.Exit(1)
+					}
+					allServers = updated
+					break signals
+				}
+				if err := syscall.Exec(selfPath, os.Args, os.Environ()); err != nil {
+					// Exec returns only on failure
+					log.Printf("Cannot exec %q: %v. Continuing with the old binary", selfPath, err)
+					if err := acquireLock(configPath); err != nil {
+						log.Printf("Cannot take the lock back: %v. Another instance may be running, exiting", err)
+						os.Exit(1)
+					}
+					allServers = updated
+					break signals
+				}
+			case syscall.SIGUSR1:
+				// Reload the configuration in this process. The listeners are
+				// restarted, active connections are not affected.
+				log.Printf("Signal %q, reloading the configuration", sig)
+				updated, err := getServers(path)
+				if err == nil {
+					allServers = updated
+					close(cancel)
+					wg.Wait()
+					log.Print("All listening servers stopped but active connections are not affected, now reloading servers from the config file")
+					break signals
+				}
+				log.Print("Config file has errors, leaving the previous configuration. Fix the errors in the config file and send a SIGUSR1 signal again")
+				log.Print(err)
+			default:
 				log.Printf("Signal %q, program ends", sig)
 				log.Print("Closing listening servers")
 				close(cancel) // not necesary as os will close all listening ports anyway
@@ -429,20 +523,47 @@ func main() {
 				// We dont stop any active connections, we probably should TODO
 				return // terminate
 			}
-			// At this point signal is HUP and we want to reload config file and restart
-			// all listening servers, without stopping any existing connections
-			updated, err := getServers(path)
-			if err == nil {
-				allServers = updated
-				close(cancel)
-				wg.Wait()
-				log.Print("All listening servers stopped but active connections are not affected, now reloading servers from the config file")
-				break
-			}
-			log.Print("Config file has errors, leaving the previous configuration. Fix the errors in the config file and send a HUP signal again")
-			log.Print(err)
 		}
 	}
+}
+
+// acquireLock takes the single-instance lock in the config directory. It is
+// called again when a re-exec fails and the daemon keeps running.
+func acquireLock(configPath string) error {
+	if instanceLock == nil {
+		instanceLock = fslock.New(filepath.Join(configPath, "lock"))
+	}
+	return instanceLock.TryLock()
+}
+
+func countForwardings(allServers []serverInfo) int {
+	n := 0
+	for _, info := range allServers {
+		n += len(info.Forward)
+	}
+	return n
+}
+
+// how long the -check-config child may take before we give up on a restart
+const preflightTimeout = 5 * time.Second
+
+// preflight runs this executable with -check-config, so a binary that cannot
+// even parse the configuration never replaces the running daemon.
+func preflight(path string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), preflightTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, selfPath, "-check-config", "-config", path)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	err := cmd.Run()
+	if ctx.Err() != nil {
+		return fmt.Errorf("no answer within %s", preflightTimeout)
+	}
+	if err != nil {
+		return fmt.Errorf("%v: %s", err, firstLine(out.String()))
+	}
+	return nil
 }
 
 // how long an ssh -W probe may stay alive before we consider the remote side

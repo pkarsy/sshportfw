@@ -29,6 +29,13 @@ func (c *SafeCounter) Dec() int {
 	return c.counter
 }
 
+// Value returns the current count without changing it.
+func (c *SafeCounter) Value() int {
+	c.Lock()
+	defer c.Unlock()
+	return c.counter
+}
+
 // Creates a new counter with atomic increase and decrease
 func New() *SafeCounter {
 	return &SafeCounter{}

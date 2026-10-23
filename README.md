@@ -160,6 +160,25 @@ A failure is also written to `/dev/tty` when one is available, at most once per 
 is visible even when the log goes to syslog (`-s`) or to a file (`-o`). When there is no controlling
 terminal (started by systemd or cron) that message is dropped and the log is the only place to look.
 
+### Signals
+| signal | what it does |
+|---|---|
+| `SIGHUP` | Restarts the process with the executable on disk, keeping the same PID. Use it after replacing the binary. Open forwarded connections are closed. |
+| `SIGUSR1` | Re-reads `forwardings.json` and restarts the listeners in place. Open forwarded connections are not affected. |
+| `SIGTERM`, `SIGINT`, `SIGABRT` | Stops the program. |
+
+Before restarting, sshportfw parses the new `forwardings.json` and runs the new executable with
+`-check-config`. If either fails, it logs the reason and keeps running the old binary, so a broken build or
+a typo cannot take the service down. The restart re-executes the path this process was started from
+(`os.Executable()`), so a rebuild in place at that path is picked up; repointing the symlink that leads to
+it is not.
+
+Upgrading while it runs:
+```sh
+> cd ~/Projects/sshportfw && go build -o sshportfw .
+> kill -HUP $(pgrep -x sshportfw)
+```
+
 The next sections are about configuring ssh to make sshportfw more useful.
 
 ## Adding functionality: Configuring the ~/.ssh/config
@@ -217,6 +236,8 @@ match host router !exec "ip -4 a | grep -q 10.5.2."
 
 -check
     Check every forwarding once and exit. One ssh connection is opened per service, so a security key may ask to be touched
+-check-config
+    Parse the configuration file and exit; opens no listener and no ssh connection
 -config string
     Path of forwardings.json (default $XDG_CONFIG_HOME/sshportfw/forwardings.json)
 -l	
