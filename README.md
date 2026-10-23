@@ -1,5 +1,8 @@
 # sshportfw
 
+Current version: **0.7.0**. `sshportfw -v` prints the version of a binary, and released executables are on the
+[Releases page](https://github.com/pkarsy/sshportfw/releases).
+
 A program doing automatic SSH port forwarding whenever we need to access our SSH-secured network appliances and servers. The audience is users/administrators who heavily rely on ssh to access remote devices.
 In this document, we take the approach that we want to access all appliances via SSH even if they are on the same network as our workstation.
 
