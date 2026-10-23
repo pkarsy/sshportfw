@@ -32,16 +32,15 @@ func isValidAddr(addr string) bool {
 	return true
 }
 
-func checkEnvironment() error {
-
+/* func checkEnvironmentDEL() error {
 	if _, ok := os.LookupEnv("DISPLAY"); !ok {
 		return fmt.Errorf("Environment variable %s is not set. ssportfw is meant to run from a Desktop session.", "DISPLAY")
 		//log.Printf("WARNING Environment variable %s is not set. ssh messages will printed in the console and you may not notic them", "DISPLAY")
 	}
 	return nil
-}
+} */
 
-// Extracts the servers from the JSON file and performs many checks to the data
+// Extracts the servers from the JSON file and performs some validity checks to the data
 func getServers(configPath string) ([]serverInfo, error) {
 	var allServers []serverInfo
 	{
@@ -51,12 +50,12 @@ func getServers(configPath string) ([]serverInfo, error) {
 		}
 		err = json.Unmarshal(data, &allServers)
 		if err != nil {
-			return nil, fmt.Errorf("Error parsing file %q err=%q", ForwardingsPath, err)
+			return nil, fmt.Errorf("error parsing file %q err=%q", ForwardingsPath, err)
 		}
 	}
 
 	if len(allServers) == 0 {
-		return nil, fmt.Errorf("The configuration file %q does not contain any server definitions", "TODO")
+		return nil, fmt.Errorf("the configuration file %q does not contain any server definitions", "TODO")
 	}
 
 	// remove unwanted spaces and new lines
@@ -72,7 +71,7 @@ func getServers(configPath string) ([]serverInfo, error) {
 		names := make(map[string]struct{})
 		for _, server := range allServers {
 			if server.Host == "" {
-				return nil, fmt.Errorf("Missing %q in server definition %#v", "Host", server)
+				return nil, fmt.Errorf("missing %q in server definition %#v", "Host", server)
 			}
 			//if server.Username == "" {
 			//	return nil, fmt.Errorf("Missing %q in server definition %#v", "Username", server)
@@ -95,11 +94,11 @@ func getServers(configPath string) ([]serverInfo, error) {
 		//}
 		for _, fw := range server.Forward {
 			if !isValidAddr(fw.ListenAddr) {
-				return nil, fmt.Errorf("File %q server %q forwarding %q has no valid port in %q", ForwardingsPath, server.Host, fw.Service, "ListenAddr")
+				return nil, fmt.Errorf("file %q server %q forwarding %q has no valid port in %q", ForwardingsPath, server.Host, fw.Service, "ListenAddr")
 			}
 			//
 			if !isValidAddr(fw.RemoteAddr) {
-				return nil, fmt.Errorf("File %q server %q forwarding %q has no valid port in %q", ForwardingsPath, server.Host, fw.Service, "RemoteAddr")
+				return nil, fmt.Errorf("file %q server %q forwarding %q has no valid port in %q", ForwardingsPath, server.Host, fw.Service, "RemoteAddr")
 			}
 		}
 	}
@@ -108,7 +107,7 @@ func getServers(configPath string) ([]serverInfo, error) {
 		names := make(map[string]struct{})
 		for _, fw := range server.Forward {
 			if fw.Service == "" {
-				return nil, fmt.Errorf("File %q, section %q, missing %q in forwarding definition", ForwardingsPath, server.Host, "Service")
+				return nil, fmt.Errorf("file %q, section %q, missing %q in forwarding definition", ForwardingsPath, server.Host, "Service")
 			}
 			fwNameLower := strings.ToLower(fw.Service)
 			if _, ok := names[fwNameLower]; ok {

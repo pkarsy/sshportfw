@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -42,13 +43,13 @@ type serverInfo struct {
 
 // Stops the timer and drains the chan safely
 // TODO delete
-func stopTimer(t *time.Timer) {
+/* func stopTimer(t *time.Timer) {
 	t.Stop()
 	select {
 	case <-t.C:
 	default:
 	}
-}
+} */
 
 func flagParse() {
 	var version bool
@@ -105,6 +106,7 @@ func flagParse() {
 
 // called as a Goroutine, takes a net.Conn, spawns a ssh connection and bidirectionally transfers data
 func sshInstance(localConn net.Conn, fw forwarding, host string) {
+	// "/data/data/com.termux/files/usr/bin/ssh"
 	cmd := exec.Command("ssh", "-W", fw.RemoteAddr, host)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -142,11 +144,11 @@ func sshInstance(localConn net.Conn, fw forwarding, host string) {
 				log.Printf("#%d local --> remote : %q", id, err)
 			})
 		}
-		/* pr := cmd.Process
-		 if pr != nil {
+		pr := cmd.Process
+		if pr != nil {
 			log.Printf("#%d Sending term signal to ssh client", id)
 			pr.Signal(syscall.SIGTERM)
-		} */
+		}
 		wg.Done()
 	}()
 	go func() {
@@ -157,11 +159,11 @@ func sshInstance(localConn net.Conn, fw forwarding, host string) {
 				log.Printf("#%d remote --> local : %q", id, err)
 			})
 		}
-		/* pr := cmd.Process
+		pr := cmd.Process
 		if pr != nil {
 			log.Printf("#%d Sending term signal to ssh client", id)
 			pr.Signal(syscall.SIGTERM)
-		} */
+		}
 		wg.Done()
 	}()
 	go func() {
@@ -188,7 +190,8 @@ func sshInstance(localConn net.Conn, fw forwarding, host string) {
 // connects to remote ssh if necessary
 // establishes a socket for communication and starts a DataCopy goroutine for the copying of
 // the data send and received
-func localPortListen(fw forwarding, host string) {
+func localPortListen(fw forwarding, host string, cancel <-chan struct{}, wg *sync.WaitGroup) {
+	defer wg.Done()
 	tag := fmt.Sprintf("%s-%s", host, fw.Service)
 	defer log.Printf("%s goroutine ends", tag)
 
@@ -203,13 +206,30 @@ func localPortListen(fw forwarding, host string) {
 		time.Sleep(time.Minute)
 	}
 	log.Printf("%s listening at %s", tag, fw.ListenAddr)
-
+	//syncChan := make(chan struct{})
+	go func() {
+		<-cancel
+		//close(syncChan)
+		localListener.Close()
+	}()
 	for {
 		localConn, err := localListener.Accept()
 		if err != nil {
-			log.Printf("%s listen.Accept failed: %v", tag, err)
+			if errors.Is(err, net.ErrClosed) {
+				//log.Print("Closed conn DEL")
+				return
+			}
+			log.Printf("%s listen.Accept failed: %v . We will try again in 1min", tag, err)
 			time.Sleep(time.Minute)
-			continue
+
+			/* select {
+			case <-cancel:
+				net.ErrClosed
+				//log.Print("Listening connection is closed")
+				return
+			case <-time.After(time.Minute):
+				continue
+			} */
 		}
 		go sshInstance(localConn, fw, host)
 	}
@@ -239,28 +259,76 @@ func main() {
 
 	}
 	// we check for the necessary env vars and programs zenity and notify-send
-	if err := checkEnvironment(); err != nil {
-		log.Print(err)
-		os.Exit(1)
-	}
-	// the SSH servers as defined in the config file
+	//if err := checkEnvironment(); err != nil {
+	//	log.Print(err)
+	//	os.Exit(1)
+	//}
+	// this loop can cycle only on a HUP sugnal. The first time we just start the listening servers
+	//reloadSignal := false
+
+	// must have capacity of 1 accordig to docs
+	osSignal := make(chan os.Signal, 1)
+	// HUP causes the server to reread the config file
+	signal.Notify(osSignal, os.Interrupt, syscall.SIGHUP)
+	// these signals (in addition to SIGKILL) terminate the server
+	signal.Notify(osSignal, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(osSignal, os.Interrupt, syscall.SIGABRT)
+	signal.Notify(osSignal, os.Interrupt, syscall.SIGINT)
+	// We get the list of the services from the config file
 	allServers, err := getServers(configPath)
 	if err != nil {
 		log.Print(err)
+		// we can't do anything else
 		os.Exit(1)
 	}
-	for _, info := range allServers {
-		for _, fw := range info.Forward {
-			go localPortListen(fw, info.Host)
+	for {
+		// the SSH servers as defined in the config file
+		//allServers, err := getServers(configPath)
+		/* if err != nil {
+			if reloadSignal == false { // first run and the config file is broken
+				log.Print(err)
+				// we can't do anything else
+				os.Exit(1)
+			}
+			// we got a HUP signal but we cant reload the config file either
+			// we print a message but we dont terminate and still using the old config
+			log.Print("Cannot reload the new config err=", err)
+		} */
+
+		// We use this channel to signal the listening servers to terminate
+		cancel := make(chan struct{})
+		// counts the listening servers. When 0 we know all servers are ended
+		var wg sync.WaitGroup
+
+		for _, info := range allServers {
+			for _, fw := range info.Forward {
+				wg.Add(1)
+				go localPortListen(fw, info.Host, cancel, &wg)
+			}
+		}
+
+		// waiting a signal from the os
+		for {
+			sig := <-osSignal // we wait here until an OS signal is caught
+			if sig != syscall.SIGHUP {
+				log.Printf("Signal %q, program ends", sig)
+				log.Print("Closing listening servers")
+				close(cancel) // not necesary as os will close all listening ports anyway
+				wg.Wait()
+				// We dont stop any active connections, we probably should TODO
+				return // terminate
+			}
+			// At this point signal is HUP and we want to reload config file and restart
+			// all listening servers, without stopping any existing connections
+			allServers, err = getServers(configPath)
+			if err == nil {
+				close(cancel)
+				wg.Wait()
+				log.Print("All listening servers stopped but active connections are not affected, now reloading servers from the config file")
+				break
+			}
+			log.Print("Config file has errors, leaving the previous configuration. Fix the errors in the config file and send a HUP signal again")
+			log.Print(err)
 		}
 	}
-	// must have capacity of 1 accordig to docs
-	sigChannel := make(chan os.Signal, 1)
-	signal.Notify(sigChannel, os.Interrupt, syscall.SIGTERM)
-	signal.Notify(sigChannel, os.Interrupt, syscall.SIGABRT)
-	signal.Notify(sigChannel, os.Interrupt, syscall.SIGHUP)
-	signal.Notify(sigChannel, os.Interrupt, syscall.SIGINT)
-	// waiting for terminating signal from the os
-	sig := <-sigChannel
-	log.Printf("Signal %q, program ends", sig)
 }

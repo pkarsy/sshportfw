@@ -3,12 +3,12 @@
 A program doing automatic SSH port forwarding whenever we need to access our SSH-secured network appliances and servers. The audience is users/administrators who heavily rely on ssh to access remote devices.
 In this document, we take the approach that we want to access all appliances via SSH even if they are on the same network as our workstation.
 
-The idea is to have sshportfw listening to local addresses such as 127.0.5.1:8080. When we point our browser to this address, openssh client is called automatically and connects to our OpenWRT router. The same thing can be achieved with the command (must be executed BEFORE we open the web page)
+The idea is to have sshportfw listening to local addresses such as 127.0.5.1:8080. When we point our browser to this address, the *ssportfw* daemon connects to our OpenWRT router using ssh. The same thing can be achieved with the command (must be executed BEFORE we open the web page)
 ```sh
-> ssh -L127.0.5.1:8080:127.0.0.1:80 router  # (or the IP)
+> ssh -L127.0.5.1:8080:127.0.0.1:80 applianceHostname  # (or the IP)
 ```
 
-but with sshportfw the process becomes automatic. ssportfw calls ssh to do the actual forwarding so some expertise in configuring the ~/.ssh/config is necessary. Note however that you do NOT need to configure port forwardings inside ~/.ssh/config. The file ~/.config/sshportfw/forwardings.json is used as we will see.
+but with sshportfw the process becomes automatic. ssportfw calls *ssh* to do the actual forwarding so some expertise in configuring the ~/.ssh/config is necessary. Note however that you do NOT need to configure port forwardings inside ~/.ssh/config. The file ~/.config/sshportfw/forwardings.json is used as we will see.
 
 
 Typically port forwarding is used to access [OpenWRT](https://openwrt.org/) routers, [Syncthing](https://syncthing.net/) web interfaces, Printer pages, and in general services that (due to security reasons) can only serve the localhost interface. Not only that, the ssh config file is very powerful and allows bypassing firewalls, accessing remote print queues etc, and all that with security, maturity and flexibility not comparable with any other software.
@@ -146,10 +146,7 @@ The next sections are about configuring ssh to make sshportfw more useful.
 ### ~/.ssh/config: Using a control socket
 At the **END** of ~/.ssh/config, you may want to add
 ```sh
-match host * # or for specific hosts only
-    # user root
-    # CheckHostIP no
-    # ForwardAgent no
+match host * # it may be a list of hosts instead of *
     ControlMaster auto
     ControlPath ~/.ssh/ssh_mux_%h_%p_%r
     ControlPersist 300
