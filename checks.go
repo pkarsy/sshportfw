@@ -73,6 +73,13 @@ func getServers(configPath string) ([]serverInfo, error) {
 			if server.Host == "" {
 				return nil, fmt.Errorf("missing %q in server definition %#v", "Host", server)
 			}
+			// The host is passed to ssh as the destination argument. A value
+			// starting with '-' would be parsed by ssh as an option, and an
+			// option such as -oProxyCommand runs an arbitrary command, so it
+			// must be rejected here.
+			if strings.HasPrefix(server.Host, "-") {
+				return nil, fmt.Errorf("file %q: host %q is not valid, it must not start with %q", ForwardingsPath, server.Host, "-")
+			}
 			//if server.Username == "" {
 			//	return nil, fmt.Errorf("Missing %q in server definition %#v", "Username", server)
 			//}

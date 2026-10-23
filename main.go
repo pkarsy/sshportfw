@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -39,6 +40,22 @@ type forwarding struct {
 type serverInfo struct {
 	Host    string
 	Forward []forwarding
+}
+
+// lineLogger forwards every line written to it to the standard logger, so that
+// the ssh client's output goes to the configured destination (-o, -s) and
+// obeys its flags instead of escaping to the terminal.
+type lineLogger struct {
+	prefix string
+}
+
+func (l lineLogger) Write(p []byte) (int, error) {
+	for _, line := range strings.Split(strings.TrimRight(string(p), "\n"), "\n") {
+		if line != "" {
+			log.Printf("%s %s", l.prefix, line)
+		}
+	}
+	return len(p), nil
 }
 
 // Stops the timer and drains the chan safely
@@ -106,24 +123,36 @@ func flagParse() {
 
 // called as a Goroutine, takes a net.Conn, spawns a ssh connection and bidirectionally transfers data
 func sshInstance(localConn net.Conn, fw forwarding, host string) {
+	if localConn == nil {
+		return
+	}
+	id := routineCount.Inc()
 	// "/data/data/com.termux/files/usr/bin/ssh"
 	cmd := exec.Command("ssh", "-W", fw.RemoteAddr, host)
+	// ssh reports host key, authentication and connection problems on stderr.
+	// Without this, os/exec discards the child's stderr and a failed forward
+	// looks like a silent connection reset in the browser.
+	cmd.Stderr = lineLogger{prefix: fmt.Sprintf("#%d ssh stderr:", id)}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		log.Print(err)
+		log.Printf("#%d %q", id, err)
+		localConn.Close()
 		return
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		log.Print(err)
+		log.Printf("#%d %q", id, err)
+		stdin.Close()
+		localConn.Close()
 		return
 	}
-	id := routineCount.Inc()
 	// Now we actually execute the ssh command
 	err = cmd.Start()
 
 	if err != nil {
-		log.Print(err)
+		log.Printf("#%d %q", id, err)
+		stdin.Close()
+		localConn.Close()
 
 		return
 	}
@@ -221,6 +250,7 @@ func localPortListen(fw forwarding, host string, cancel <-chan struct{}, wg *syn
 			}
 			log.Printf("%s listen.Accept failed: %v . We will try again in 1min", tag, err)
 			time.Sleep(time.Minute)
+			continue
 
 			/* select {
 			case <-cancel:
