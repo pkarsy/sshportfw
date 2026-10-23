@@ -268,6 +268,11 @@ match host router !exec "ip -4 a | grep -q 10.5.2."
     prints current sshportfw version
 ```
 
+Every option has a short and a long form with the same meaning (`-o` / `-output`, `-s` / `-syslog`, and so on).
+Both report modes return an exit code that a script can use: `-check-config` exits 0 only if the file parses,
+`-check` exits 0 only if every forwarding answered. `-ssh` selects a different ssh client when the one found in
+`PATH` is not the one you want, for example `-ssh /data/data/com.termux/files/usr/bin/ssh` on Termux.
+
 ### Use hostnames instead of IPs on the browser.
 - We can edit /etc/hosts and add the line
   ```sh
