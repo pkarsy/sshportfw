@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -121,6 +122,13 @@ func flagParse() {
 	log.SetFlags(currflags)
 }
 
+// isPeerGone reports errors that only say the other side has already gone away.
+// They follow the real reason (ssh's stderr, a tab closed by the user) and are
+// not worth a log line of their own.
+func isPeerGone(err error) bool {
+	return errors.Is(err, net.ErrClosed) || errors.Is(err, os.ErrClosed) || errors.Is(err, syscall.EPIPE)
+}
+
 // called as a Goroutine, takes a net.Conn, spawns a ssh connection and bidirectionally transfers data
 func sshInstance(localConn net.Conn, fw forwarding, host string) {
 	if localConn == nil {
@@ -165,39 +173,47 @@ func sshInstance(localConn net.Conn, fw forwarding, host string) {
 	wg.Add(3)
 	//active :=
 
+	// Terminate ssh at most once, whichever direction finishes first. The
+	// "signal: terminated" that Wait then reports is our own doing, so it is
+	// not logged as an error.
+	var killOnce sync.Once
+	var killed atomic.Bool
+	killSSH := func() {
+		killOnce.Do(func() {
+			pr := cmd.Process
+			if pr != nil {
+				killed.Store(true)
+				log.Printf("#%d Sending term signal to ssh client", id)
+				pr.Signal(syscall.SIGTERM)
+			}
+		})
+	}
+	// only the first unexpected error is reported
+	copyError := func(direction string, err error) {
+		if err != nil && !isPeerGone(err) {
+			once.Do(func() {
+				log.Printf("#%d %s : %q", id, direction, err)
+			})
+		}
+	}
+
 	go func() {
 		_, err := io.Copy(stdin, localConn)
 		localConn.Close() // we force the other io.Copy to terminate (reader)
-		if err != nil {
-			once.Do(func() {
-				log.Printf("#%d local --> remote : %q", id, err)
-			})
-		}
-		pr := cmd.Process
-		if pr != nil {
-			log.Printf("#%d Sending term signal to ssh client", id)
-			pr.Signal(syscall.SIGTERM)
-		}
+		copyError("local --> remote", err)
+		killSSH()
 		wg.Done()
 	}()
 	go func() {
 		_, err := io.Copy(localConn, stdout)
 		localConn.Close() // we force the other io.Copy(goroutine) to exit (reader)
-		if err != nil {
-			once.Do(func() {
-				log.Printf("#%d remote --> local : %q", id, err)
-			})
-		}
-		pr := cmd.Process
-		if pr != nil {
-			log.Printf("#%d Sending term signal to ssh client", id)
-			pr.Signal(syscall.SIGTERM)
-		}
+		copyError("remote --> local", err)
+		killSSH()
 		wg.Done()
 	}()
 	go func() {
-		err = cmd.Wait()
-		if err != nil {
+		err := cmd.Wait()
+		if err != nil && !killed.Load() {
 			once.Do(func() {
 				log.Printf("#%d : %q", id, err)
 			})
@@ -215,6 +231,28 @@ func sshInstance(localConn net.Conn, fw forwarding, host string) {
 	//log.Printf("Active SSH forwardings remaining : %d")
 }
 
+// how long to wait before retrying a listen or an accept that failed
+const listenRetryDelay = time.Minute
+
+// listenWithRetry binds addr, retrying every listenRetryDelay until it succeeds.
+// It returns false when cancel is closed first, so that a port which can never
+// be bound cannot block a reload or a shutdown.
+func listenWithRetry(tag, addr string, cancel <-chan struct{}) (net.Listener, bool) {
+	for {
+		localListener, err := net.Listen("tcp", addr)
+		if err == nil {
+			return localListener, true
+		}
+		log.Printf("%s listen failed at %s err=%q", tag, addr, err)
+		select {
+		case <-cancel:
+			log.Printf("%s listen cancelled while retrying", tag)
+			return nil, false
+		case <-time.After(listenRetryDelay):
+		}
+	}
+}
+
 // listens to a local port and whan a local connection occurs
 // connects to remote ssh if necessary
 // establishes a socket for communication and starts a DataCopy goroutine for the copying of
@@ -224,42 +262,38 @@ func localPortListen(fw forwarding, host string, cancel <-chan struct{}, wg *syn
 	tag := fmt.Sprintf("%s-%s", host, fw.Service)
 	defer log.Printf("%s goroutine ends", tag)
 
-	var localListener net.Listener
-	for {
-		var err error
-		localListener, err = net.Listen("tcp", fw.ListenAddr)
-		if err == nil {
-			break
-		}
-		log.Printf("%s listen failed at %s err=%q", tag, fw.ListenAddr, err)
-		time.Sleep(time.Minute)
+	localListener, ok := listenWithRetry(tag, fw.ListenAddr, cancel)
+	if !ok {
+		return
 	}
+	defer localListener.Close()
 	log.Printf("%s listening at %s", tag, fw.ListenAddr)
-	//syncChan := make(chan struct{})
+
+	// Closing the listener unblocks Accept. The goroutine ends either when the
+	// listener is cancelled or when this function returns.
+	stop := make(chan struct{})
+	defer close(stop)
 	go func() {
-		<-cancel
-		//close(syncChan)
-		localListener.Close()
+		select {
+		case <-cancel:
+			localListener.Close()
+		case <-stop:
+		}
 	}()
+
 	for {
 		localConn, err := localListener.Accept()
 		if err != nil {
 			if errors.Is(err, net.ErrClosed) {
-				//log.Print("Closed conn DEL")
 				return
 			}
-			log.Printf("%s listen.Accept failed: %v . We will try again in 1min", tag, err)
-			time.Sleep(time.Minute)
-			continue
-
-			/* select {
+			log.Printf("%s listen.Accept failed: %v . We will try again in %s", tag, err, listenRetryDelay)
+			select {
 			case <-cancel:
-				net.ErrClosed
-				//log.Print("Listening connection is closed")
 				return
-			case <-time.After(time.Minute):
-				continue
-			} */
+			case <-time.After(listenRetryDelay):
+			}
+			continue
 		}
 		go sshInstance(localConn, fw, host)
 	}
