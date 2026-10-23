@@ -116,6 +116,11 @@ and the other LAN devices to have 10.5.2.X addresses. Also, we assume that local
 ]
 ```
 
+Both addresses must be written as `host:port`; IPv6 addresses need brackets, for example `[::1]:80`.
+A wildcard listen address (`:8080`, `0.0.0.0:8080`, `[::]:8080`) is refused, because it would expose the
+forwarded service on every interface, which is the opposite of what sshportfw is for. Every `ListenAddr`
+must be unique, and a `Host` may not start with `-` (ssh would parse it as an option).
+
 The "Host" can be the hostname(or the IP) or "user@host" or a **Host entry inside ~/.ssh/config**  (this is the preferred approach)
 
 
@@ -138,6 +143,22 @@ accept the unknown host message (if this is the first time and after you verify 
 ### STEP 4: running the program
 When you configure the "forwardings.json" you have to run it manually to check the output.
 If you are in constant need of the port forward facility, ie to use your printer then put the program in the list of the startup programs. If you put it in a cron startup script it won't run because it needs the DISPLAY environment variable. If you use ControlPanel->StartupApps it is ok. Redirect the output to a file to know what happens if you have problems, or use the --syslog flag.
+
+To find out whether a forwarding works without opening a browser, run
+```sh
+> sshportfw -check
+checking 11 forwarding(s) from /home/user/.config/sshportfw/forwardings.json
+ok    router-LuCi                  127.0.10.1:8080        -> 127.0.0.1:80
+FAIL  printer-GUI                 127.0.14.3:8080        -> printer2.lan:80 : ssh: Could not resolve hostname printer2.lan
+1 of 11 forwarding(s) failed
+```
+`-check` opens one `ssh -W` connection per service, waits up to 5 seconds for each and closes it again.
+It starts no listener and takes no lock, so it can run while sshportfw is running. With a security key
+this means one touch per service, unless a control socket is reused.
+
+A failure is also written to `/dev/tty` when one is available, at most once per service per minute, so it
+is visible even when the log goes to syslog (`-s`) or to a file (`-o`). When there is no controlling
+terminal (started by systemd or cron) that message is dropped and the log is the only place to look.
 
 The next sections are about configuring ssh to make sshportfw more useful.
 
@@ -194,6 +215,10 @@ match host router !exec "ip -4 a | grep -q 10.5.2."
 ```sh
 > sshportfw -h
 
+-check
+    Check every forwarding once and exit. One ssh connection is opened per service, so a security key may ask to be touched
+-config string
+    Path of forwardings.json (default $XDG_CONFIG_HOME/sshportfw/forwardings.json)
 -l	
 -lines
     Print source code line numbers for debugging
@@ -203,6 +228,8 @@ match host router !exec "ip -4 a | grep -q 10.5.2."
 -s	
 -syslog
     redirects output to syslog
+-ssh string
+    ssh client to execute (default "ssh")
 -t	
 -time
     Print date and time for every line of output (ignored on syslog output)
@@ -242,6 +269,7 @@ Security keys such as [Yubico](https://www.yubico.com/) [Solokey](https://soloke
 
 ## Bugs
 The testing is very limited, the program is used on a Linux Mint laptop using Ybico FIDO keys. If you find some bugs please report them in the issues section.
+The configuration parser has unit tests; run `go test ./...` after changing it.
 
 ## Other platforms
 The program is pure Golang and is trivial to compile and cross-compile for any supported platform. It is only tested on Linux however. If you can run the application successfully on a Mac or Windows send me the instructions to include in this document.

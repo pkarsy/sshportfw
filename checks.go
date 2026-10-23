@@ -3,229 +3,113 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"strings"
 )
 
-// TODO return err with message
-func isValidAddr(addr string) bool {
-	if len(addr) == 0 {
-		return false
-	}
-	if addr[0] == '/' {
-		// We assume unix socket
-		return true
-	}
-	addrPort := strings.Split(addr, ":")
-	if len(addrPort) != 2 {
-		return false
-	}
-	portStr := addrPort[1]
-	port, err := strconv.Atoi(portStr)
+// getServers reads and validates the forwardings file at path.
+func getServers(path string) ([]serverInfo, error) {
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return false
+		return nil, fmt.Errorf("cannot read %q: %w", path, err)
 	}
-	if port <= 0 || port > 65536 {
-		return false
-	}
-	return true
-}
-
-/* func checkEnvironmentDEL() error {
-	if _, ok := os.LookupEnv("DISPLAY"); !ok {
-		return fmt.Errorf("Environment variable %s is not set. ssportfw is meant to run from a Desktop session.", "DISPLAY")
-		//log.Printf("WARNING Environment variable %s is not set. ssh messages will printed in the console and you may not notic them", "DISPLAY")
-	}
-	return nil
-} */
-
-// Extracts the servers from the JSON file and performs some validity checks to the data
-func getServers(configPath string) ([]serverInfo, error) {
 	var allServers []serverInfo
-	{
-		data, err := os.ReadFile(ForwardingsPath)
-		if err != nil {
-			return nil, err // TODO more verbose message
-		}
-		err = json.Unmarshal(data, &allServers)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing file %q err=%q", ForwardingsPath, err)
-		}
+	if err := json.Unmarshal(data, &allServers); err != nil {
+		return nil, fmt.Errorf("cannot parse %q: %w", path, err)
 	}
-
 	if len(allServers) == 0 {
-		return nil, fmt.Errorf("the configuration file %q does not contain any server definitions", "TODO")
+		return nil, fmt.Errorf("the configuration file %q does not contain any server definitions", path)
 	}
 
-	// remove unwanted spaces and new lines
+	hosts := make(map[string]struct{})
+	listenAddrs := make(map[string]string) // normalized listen address -> "host %q service %q"
+
 	for idx, server := range allServers {
-		allServers[idx].Host = strings.TrimSpace(server.Host)
-		//allServers[idx].Username = strings.TrimSpace(server.Username)
-		for jdx, fw := range server.Forward {
-			allServers[idx].Forward[jdx].Service = strings.TrimSpace(fw.Service)
-		}
-	}
+		s := server
+		s.Host = strings.TrimSpace(server.Host)
 
-	{
-		names := make(map[string]struct{})
-		for _, server := range allServers {
-			if server.Host == "" {
-				return nil, fmt.Errorf("missing %q in server definition %#v", "Host", server)
-			}
-			// The host is passed to ssh as the destination argument. A value
-			// starting with '-' would be parsed by ssh as an option, and an
-			// option such as -oProxyCommand runs an arbitrary command, so it
-			// must be rejected here.
-			if strings.HasPrefix(server.Host, "-") {
-				return nil, fmt.Errorf("file %q: host %q is not valid, it must not start with %q", ForwardingsPath, server.Host, "-")
-			}
-			//if server.Username == "" {
-			//	return nil, fmt.Errorf("Missing %q in server definition %#v", "Username", server)
-			//}
-			sNameLower := strings.ToLower(server.Host)
-			if _, ok := names[sNameLower]; ok {
-				return nil, fmt.Errorf("%q is declared multiple times in %q", server.Host, ForwardingsPath)
-				//os.Exit(1)
-			}
-			names[sNameLower] = struct{}{}
+		if s.Host == "" {
+			return nil, fmt.Errorf("file %q: server #%d has an empty %q", path, idx+1, "Host")
 		}
-	}
-
-	for _, server := range allServers {
-		//if !isValidAddr(server.Hostname) {
-		//	return nil, fmt.Errorf("File %q server %q has no valid port in %q", ForwardingsPath, server.Name, "Hostname")
-		//}
-		//if server.HostnameExternal != "" && !isValidAddr(server.HostnameExternal) {
-		//	return nil, fmt.Errorf("File %q server %q has no valid port in HostnameExternal", ForwardingsPath, server.Name)
-		//}
-		for _, fw := range server.Forward {
-			if !isValidAddr(fw.ListenAddr) {
-				return nil, fmt.Errorf("file %q server %q forwarding %q has no valid port in %q", ForwardingsPath, server.Host, fw.Service, "ListenAddr")
-			}
-			//
-			if !isValidAddr(fw.RemoteAddr) {
-				return nil, fmt.Errorf("file %q server %q forwarding %q has no valid port in %q", ForwardingsPath, server.Host, fw.Service, "RemoteAddr")
-			}
+		// The host is passed to ssh as the destination argument. A value
+		// starting with '-' would be parsed by ssh as an option, and an
+		// option such as -oProxyCommand runs an arbitrary command.
+		if strings.HasPrefix(s.Host, "-") {
+			return nil, fmt.Errorf("file %q: host %q is not valid, it must not start with %q", path, s.Host, "-")
 		}
-	}
+		if strings.ContainsAny(s.Host, " \t\r\n") {
+			return nil, fmt.Errorf("file %q: host %q must not contain whitespace", path, s.Host)
+		}
+		hostKey := strings.ToLower(s.Host)
+		if _, ok := hosts[hostKey]; ok {
+			return nil, fmt.Errorf("file %q: host %q is declared multiple times", path, s.Host)
+		}
+		hosts[hostKey] = struct{}{}
 
-	for _, server := range allServers {
-		names := make(map[string]struct{})
-		for _, fw := range server.Forward {
+		if len(s.Forward) == 0 {
+			return nil, fmt.Errorf("file %q: host %q has no forwardings", path, s.Host)
+		}
+
+		services := make(map[string]struct{})
+		for jdx, fw := range s.Forward {
+			fw.Service = strings.TrimSpace(fw.Service)
+			fw.ListenAddr = strings.TrimSpace(fw.ListenAddr)
+			fw.RemoteAddr = strings.TrimSpace(fw.RemoteAddr)
+
 			if fw.Service == "" {
-				return nil, fmt.Errorf("file %q, section %q, missing %q in forwarding definition", ForwardingsPath, server.Host, "Service")
+				return nil, fmt.Errorf("file %q: host %q, forwarding #%d has an empty %q", path, s.Host, jdx+1, "Service")
 			}
-			fwNameLower := strings.ToLower(fw.Service)
-			if _, ok := names[fwNameLower]; ok {
-				return nil, fmt.Errorf("%q is declared multiple times in %q file %q", fw.Service, server.Host, ForwardingsPath)
+			svcKey := strings.ToLower(fw.Service)
+			if _, ok := services[svcKey]; ok {
+				return nil, fmt.Errorf("file %q: service %q is declared multiple times under host %q", path, fw.Service, s.Host)
 			}
-			names[fwNameLower] = struct{}{}
-		}
-	}
+			services[svcKey] = struct{}{}
 
+			listen, err := validateAddr(fw.ListenAddr, true)
+			if err != nil {
+				return nil, fmt.Errorf("file %q: host %q, service %q: %w", path, s.Host, fw.Service, err)
+			}
+			if _, err := validateAddr(fw.RemoteAddr, false); err != nil {
+				return nil, fmt.Errorf("file %q: host %q, service %q: %w", path, s.Host, fw.Service, err)
+			}
+			if prev, ok := listenAddrs[listen]; ok {
+				return nil, fmt.Errorf("file %q: %q is already forwarded by %s", path, listen, prev)
+			}
+			listenAddrs[listen] = fmt.Sprintf("host %q service %q", s.Host, fw.Service)
+
+			s.Forward[jdx] = fw
+		}
+		allServers[idx] = s
+	}
 	return allServers, nil
 }
 
-///// END
-
-//if _, err := exec.Command("notify-send", "--version").Output(); err != nil { // TODO var
-//	return fmt.Errorf("Cannot run %q. Error=%q.", "notify-send", err)
-//}
-//if _, ok := os.LookupEnv(AuthSocketEnv); !ok {
-//	// TODO notify-send message
-//	return fmt.Errorf("Environment variable %s is not set. ssportfw needs an ssh agent for secret queries.", AuthSocketEnv)
-//}
-//if _, err := exec.Command("zenity", "--version").Output(); err != nil { // TODO var
-//	// TODO notify-send message
-//	return fmt.Errorf("Cannot run %q. Error=%q.", "zenity", err)
-//}
-
-/* if errors.Is(err, os.ErrNotExist) {
-	_, err := os.Create(ForwardingsPath)
-	if err == nil {
-		//log.Printf("Created empty %q file. Go to\nhttps://github.com/pkarsy/sshportfw\nto to find out how to add SSH server entries", ForwardingsPath)
-		return nil, fmt.Errorf("Created empty %q file. Go to\nhttps://github.com/pkarsy/sshportfw\nto to find out how to add SSH server entries", ForwardingsPath)
+// validateAddr checks a "host:port" string and returns it normalized.
+// listen selects the message for a wildcard address: binding to 0.0.0.0 or ::
+// exposes the forwarded service on every interface, which defeats the purpose
+// of the program, so it is always refused.
+func validateAddr(addr string, listen bool) (string, error) {
+	host, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", fmt.Errorf("invalid address %q, expected host:port", addr)
 	}
-	return nil, err
-} else {
-	log.Print(err)
-	return
+	if host == "" {
+		return "", fmt.Errorf("invalid address %q: missing host", addr)
+	}
+	if strings.ContainsAny(host, " \t\r\n") {
+		return "", fmt.Errorf("invalid address %q: host contains whitespace", addr)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil || port < 1 || port > 65535 {
+		return "", fmt.Errorf("invalid address %q: port must be a number from 1 to 65535", addr)
+	}
+	if ip := net.ParseIP(host); ip != nil && ip.IsUnspecified() {
+		if listen {
+			return "", fmt.Errorf("invalid address %q: a wildcard address exposes the service on every interface; use an address such as 127.0.0.1 instead", addr)
+		}
+		return "", fmt.Errorf("invalid address %q: wildcard address", addr)
+	}
+	return net.JoinHostPort(strings.ToLower(host), strconv.Itoa(port)), nil
 }
-os.Exit(1) */
-
-// The network match is case insensitive.
-//allServers[idx].Network = strings.TrimSpace(strings.ToLower(server.Network))
-//allServers[idx].Hostname = strings.TrimSpace(server.Hostname)
-//allServers[idx].HostnameExternal = strings.TrimSpace(server.HostnameExternal)
-//allServers[idx].JumpHostExternal = strings.TrimSpace(server.JumpHostExternal)
-
-//if server.Hostname == "" {
-//	return nil, fmt.Errorf("Missing %q in server definition %#v", "Hostname", server)
-//	//os.Exit(1)
-//}
-
-/* if server.Network == "" {
-	if server.HostnameExternal == "" && server.JumpHostExternal == "" {
-		return nil, fmt.Errorf("%q is set but missing %q or %q in server definition %#v", "Network", "HostnameExternal", "JumpHostExternal", server)
-		//os.Exit(1)
-	}
-} */
-
-/* {
-	var addrlast = 1
-	for idx, server := range allServers {
-		if server.JumpHostExternal != "" {
-			if server.HostnameExternal != "" {
-				//msg := fmt.Sprintf("ERROR : in file %q HostNameExternal and JumpHostExternal are both set", ForwardingsPath)
-				return nil, fmt.Errorf("ERROR : in file %q HostNameExternal and JumpHostExternal are both set", ForwardingsPath)
-				//os.Exit(1)
-			}
-			laddr := fmt.Sprintf("127.1.2.%d:%d", addrlast, JumpHostPort)
-			allServers[idx].HostnameExternal = laddr // TODO dynamic and socket
-			//log.Printf("Adding HostnameExternal=%q to %q", laddr, server.Name)
-			addrlast++
-			for idx, jh := range allServers {
-				if jh.Name == server.JumpHostExternal {
-					fw := forwarding{fmt.Sprintf("JumpHostFor-%s", server.Name), "JumpHost", laddr, server.Hostname}
-					allServers[idx].Forward = append(jh.Forward, fw)
-					//log.Printf("Adding forwarding %q to %q", fw, jh.Name)
-					//log.Print(jh.Forward)
-					break
-				}
-				if idx == len(allServers)-1 {
-					return nil, fmt.Errorf("In %q file section %q cannot find %q jumphost. No such server is declared", ForwardingsPath, server.Name, server.JumpHostExternal)
-					//os.Exit(1)
-				}
-			}
-		}
-	}
-} */
-
-/* for _, server := range allServers {
-	if strings.EqualFold(server.Hostname, server.HostnameExternal) {
-		return nil, fmt.Errorf("File %q, section %q, Hostname cannot be the same as HostnameExternal", ForwardingsPath, server.Name)
-		//os.Exit(1)
-	}
-} */
-
-// TODO na paei mesa sto getServers
-
-/* for _, server := range allServers {
-	if server.Network != "" {
-		output, err := exec.Command(path.Join(configPath, NetworFinderPath)).Output()
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				// silently ignore the missing script, is not very useful anyway
-				log.Printf("File %q server %q. HostnameExternel is set but executable file %q does not exist", ForwardingsPath, server.Name, "network")
-			} else {
-				log.Printf("File %q server %q. HostnameExternel is set but executable file %q gave error : %q", ForwardingsPath, server.Name, "network", err)
-			}
-			os.Exit(1)
-		}
-		if len(output) == 0 {
-			log.Print("The network script does not produce any output, should print something like home, work etc")
-			os.Exit(1)
-		}
-	}
-} */

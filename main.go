@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -45,29 +47,82 @@ type serverInfo struct {
 
 // lineLogger forwards every line written to it to the standard logger, so that
 // the ssh client's output goes to the configured destination (-o, -s) and
-// obeys its flags instead of escaping to the terminal.
+// obeys its flags instead of escaping to the terminal. The first line is also
+// reported on the console when one is available.
 type lineLogger struct {
 	prefix string
+	notify func(string)
+	once   sync.Once
 }
 
-func (l lineLogger) Write(p []byte) (int, error) {
+func (l *lineLogger) Write(p []byte) (int, error) {
 	for _, line := range strings.Split(strings.TrimRight(string(p), "\n"), "\n") {
 		if line != "" {
 			log.Printf("%s %s", l.prefix, line)
+			l.once.Do(func() {
+				if l.notify != nil {
+					l.notify(line)
+				}
+			})
 		}
 	}
 	return len(p), nil
 }
 
-// Stops the timer and drains the chan safely
-// TODO delete
-/* func stopTimer(t *time.Timer) {
-	t.Stop()
-	select {
-	case <-t.C:
-	default:
+// consolef writes a message to /dev/tty when one is available, so that a
+// failure is visible even when the log goes to syslog (-s) or to a file (-o).
+// It is a no-op when there is no controlling terminal (systemd, cron).
+func consolef(format string, args ...any) {
+	ttyOnce.Do(func() {
+		ttyFile, _ = os.OpenFile("/dev/tty", os.O_WRONLY, 0)
+	})
+	if ttyFile != nil {
+		fmt.Fprintf(ttyFile, format+"\n", args...)
 	}
-} */
+}
+
+// failureNotifier reports a forwarding failure on the console at most once per
+// notifyInterval, so retries of the same broken service do not flood it.
+type failureNotifier struct {
+	tag  string
+	mu   sync.Mutex
+	last time.Time
+}
+
+func (n *failureNotifier) notify(format string, args ...any) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if time.Since(n.last) < notifyInterval {
+		return
+	}
+	n.last = time.Now()
+	consolef("%s: %s: %s", Appname, n.tag, fmt.Sprintf(format, args...))
+}
+
+// how long to wait between attempts to bind a local port or to accept on it
+const listenRetryDelay = time.Minute
+
+// bounds the TCP connect time of the ssh client we spawn per connection.
+const sshConnectTimeout = "10"
+
+// at most one console message per forwarding and interval, so a service that is
+// down does not flood the terminal each time the browser retries.
+const notifyInterval = time.Minute
+
+var (
+	// set from the command line before any goroutine starts
+	checkMode  bool
+	configFile string
+	sshBinary  = "ssh"
+
+	// keeps the lock reachable for the lifetime of the process: a finalized
+	// os.File closes its descriptor, which would release the lock.
+	instanceLock *fslock.Lock
+
+	// /dev/tty, opened lazily and shared by the console messages
+	ttyOnce sync.Once
+	ttyFile *os.File
+)
 
 func flagParse() {
 	var version bool
@@ -85,6 +140,9 @@ func flagParse() {
 	flag.BoolVar(&lines, "l", false, "")
 	flag.BoolVar(&printtime, "time", false, "Print date and time for every line of output (ignored on syslog output)")
 	flag.BoolVar(&printtime, "t", false, "")
+	flag.BoolVar(&checkMode, "check", false, "Check every forwarding once and exit. One ssh connection is opened per service, so a security key may ask to be touched")
+	flag.StringVar(&configFile, "config", "", "Path of forwardings.json (default $XDG_CONFIG_HOME/sshportfw/forwardings.json)")
+	flag.StringVar(&sshBinary, "ssh", "ssh", "ssh client to execute")
 	flag.Parse()
 	currflags := 0
 	if version {
@@ -130,17 +188,23 @@ func isPeerGone(err error) bool {
 }
 
 // called as a Goroutine, takes a net.Conn, spawns a ssh connection and bidirectionally transfers data
-func sshInstance(localConn net.Conn, fw forwarding, host string) {
+func sshInstance(localConn net.Conn, fw forwarding, host string, notifier *failureNotifier) {
 	if localConn == nil {
 		return
 	}
+	if notifier == nil {
+		notifier = &failureNotifier{tag: fmt.Sprintf("%s-%s", host, fw.Service)}
+	}
 	id := routineCount.Inc()
-	// "/data/data/com.termux/files/usr/bin/ssh"
-	cmd := exec.Command("ssh", "-W", fw.RemoteAddr, host)
+	cmd := exec.Command(sshBinary, "-o", "ConnectTimeout="+sshConnectTimeout, "-W", fw.RemoteAddr, host)
 	// ssh reports host key, authentication and connection problems on stderr.
 	// Without this, os/exec discards the child's stderr and a failed forward
-	// looks like a silent connection reset in the browser.
-	cmd.Stderr = lineLogger{prefix: fmt.Sprintf("#%d ssh stderr:", id)}
+	// looks like a silent connection reset in the browser. The first line is
+	// also shown on the console, rate limited.
+	cmd.Stderr = &lineLogger{
+		prefix: fmt.Sprintf("#%d ssh stderr:", id),
+		notify: func(line string) { notifier.notify("%s", line) },
+	}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		log.Printf("#%d %q", id, err)
@@ -231,19 +295,17 @@ func sshInstance(localConn net.Conn, fw forwarding, host string) {
 	//log.Printf("Active SSH forwardings remaining : %d")
 }
 
-// how long to wait before retrying a listen or an accept that failed
-const listenRetryDelay = time.Minute
-
 // listenWithRetry binds addr, retrying every listenRetryDelay until it succeeds.
 // It returns false when cancel is closed first, so that a port which can never
 // be bound cannot block a reload or a shutdown.
-func listenWithRetry(tag, addr string, cancel <-chan struct{}) (net.Listener, bool) {
+func listenWithRetry(tag, addr string, cancel <-chan struct{}, notifier *failureNotifier) (net.Listener, bool) {
 	for {
 		localListener, err := net.Listen("tcp", addr)
 		if err == nil {
 			return localListener, true
 		}
 		log.Printf("%s listen failed at %s err=%q", tag, addr, err)
+		notifier.notify("cannot listen on %s: %v", addr, err)
 		select {
 		case <-cancel:
 			log.Printf("%s listen cancelled while retrying", tag)
@@ -261,8 +323,9 @@ func localPortListen(fw forwarding, host string, cancel <-chan struct{}, wg *syn
 	defer wg.Done()
 	tag := fmt.Sprintf("%s-%s", host, fw.Service)
 	defer log.Printf("%s goroutine ends", tag)
+	notifier := &failureNotifier{tag: tag}
 
-	localListener, ok := listenWithRetry(tag, fw.ListenAddr, cancel)
+	localListener, ok := listenWithRetry(tag, fw.ListenAddr, cancel, notifier)
 	if !ok {
 		return
 	}
@@ -295,7 +358,7 @@ func localPortListen(fw forwarding, host string, cancel <-chan struct{}, wg *syn
 			}
 			continue
 		}
-		go sshInstance(localConn, fw, host)
+		go sshInstance(localConn, fw, host, notifier)
 	}
 }
 
@@ -304,31 +367,35 @@ func main() {
 	flagParse()
 	// The location of the config dir on linux is ~/.config/sshportfw
 	configPath := configdir.LocalConfig(Appname)
+	path := configFile
+	if path == "" {
+		path = filepath.Join(configPath, ForwardingsPath)
+	}
+
+	// The SSH servers as defined in the config file
+	allServers, err := getServers(path)
+	if err != nil {
+		log.Print(err)
+		// we can't do anything else
+		os.Exit(1)
+	}
+
+	// -check only reports. It starts no listener and takes no lock, so it can
+	// run while the daemon is running.
+	if checkMode {
+		os.Exit(runChecks(path, allServers))
+	}
+
 	if err := configdir.MakePath(configPath); err != nil {
 		log.Print(err)
-		return
+		os.Exit(1)
 	}
-	if err := os.Chdir(configPath); err != nil {
-		log.Print(err)
-		return
+	// Do not allow 2 instances of the program to run at the same time
+	instanceLock = fslock.New(filepath.Join(configPath, "lock"))
+	if err := instanceLock.TryLock(); err != nil {
+		log.Printf("%q : %s", err, "Check if the program is already running in another console or in the background.")
+		os.Exit(1)
 	}
-	// Do not allow 2 insrances of the program to run at the same time
-	{
-		lock := fslock.New("lock")
-		if err := lock.TryLock(); err != nil {
-			log.Printf("%q : %s", err, "Check if the program is already running in another console or in the background.")
-			//log.Print("Already running")
-			os.Exit(1)
-		}
-
-	}
-	// we check for the necessary env vars and programs zenity and notify-send
-	//if err := checkEnvironment(); err != nil {
-	//	log.Print(err)
-	//	os.Exit(1)
-	//}
-	// this loop can cycle only on a HUP sugnal. The first time we just start the listening servers
-	//reloadSignal := false
 
 	// must have capacity of 1 accordig to docs
 	osSignal := make(chan os.Signal, 1)
@@ -338,27 +405,7 @@ func main() {
 	signal.Notify(osSignal, os.Interrupt, syscall.SIGTERM)
 	signal.Notify(osSignal, os.Interrupt, syscall.SIGABRT)
 	signal.Notify(osSignal, os.Interrupt, syscall.SIGINT)
-	// We get the list of the services from the config file
-	allServers, err := getServers(configPath)
-	if err != nil {
-		log.Print(err)
-		// we can't do anything else
-		os.Exit(1)
-	}
 	for {
-		// the SSH servers as defined in the config file
-		//allServers, err := getServers(configPath)
-		/* if err != nil {
-			if reloadSignal == false { // first run and the config file is broken
-				log.Print(err)
-				// we can't do anything else
-				os.Exit(1)
-			}
-			// we got a HUP signal but we cant reload the config file either
-			// we print a message but we dont terminate and still using the old config
-			log.Print("Cannot reload the new config err=", err)
-		} */
-
 		// We use this channel to signal the listening servers to terminate
 		cancel := make(chan struct{})
 		// counts the listening servers. When 0 we know all servers are ended
@@ -384,8 +431,9 @@ func main() {
 			}
 			// At this point signal is HUP and we want to reload config file and restart
 			// all listening servers, without stopping any existing connections
-			allServers, err = getServers(configPath)
+			updated, err := getServers(path)
 			if err == nil {
+				allServers = updated
 				close(cancel)
 				wg.Wait()
 				log.Print("All listening servers stopped but active connections are not affected, now reloading servers from the config file")
@@ -395,4 +443,83 @@ func main() {
 			log.Print(err)
 		}
 	}
+}
+
+// how long an ssh -W probe may stay alive before we consider the remote side
+// reachable. A failing ssh exits within this window.
+const checkProbeWait = 5 * time.Second
+
+// runChecks probes every forwarding once, prints one line per service and
+// returns the process exit code. Connections are closed again immediately; the
+// lazy design of the daemon is unaffected because this is a separate command.
+func runChecks(path string, allServers []serverInfo) int {
+	total := 0
+	for _, info := range allServers {
+		total += len(info.Forward)
+	}
+	fmt.Printf("checking %d forwarding(s) from %s\n", total, path)
+
+	failures := 0
+	for _, info := range allServers {
+		for _, fw := range info.Forward {
+			tag := fmt.Sprintf("%s-%s", info.Host, fw.Service)
+			ok, reason := probeForwarding(info.Host, fw)
+			if ok {
+				fmt.Printf("ok    %-32s %-22s -> %s\n", tag, fw.ListenAddr, fw.RemoteAddr)
+				continue
+			}
+			failures++
+			fmt.Printf("FAIL  %-32s %-22s -> %s : %s\n", tag, fw.ListenAddr, fw.RemoteAddr, reason)
+		}
+	}
+	if failures > 0 {
+		fmt.Printf("%d of %d forwarding(s) failed\n", failures, total)
+		return 1
+	}
+	fmt.Printf("all %d forwarding(s) ok\n", total)
+	return 0
+}
+
+// probeForwarding runs "ssh -W" the same way a local connection would and
+// decides from its behaviour: ssh exits when the remote port cannot be reached
+// or authentication fails, and stays alive when the channel is open.
+func probeForwarding(host string, fw forwarding) (bool, string) {
+	cmd := exec.Command(sshBinary, "-o", "ConnectTimeout="+sshConnectTimeout, "-W", fw.RemoteAddr, host)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return false, err.Error()
+	}
+	defer stdin.Close()
+	if err := cmd.Start(); err != nil {
+		return false, err.Error()
+	}
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	select {
+	case err := <-done:
+		if reason := firstLine(stderr.String()); reason != "" {
+			return false, reason
+		}
+		if err != nil {
+			return false, err.Error()
+		}
+		return false, "ssh exited"
+	case <-time.After(checkProbeWait):
+		// still running: the remote side accepted the channel. Do not leave
+		// the connection open.
+		cmd.Process.Kill()
+		<-done
+		return true, ""
+	}
+}
+
+func firstLine(s string) string {
+	s = strings.TrimSpace(s)
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		s = s[:i]
+	}
+	return s
 }
