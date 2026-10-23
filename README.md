@@ -3,30 +3,30 @@
 A program doing automatic SSH port forwarding whenever we need to access our SSH-secured network appliances and servers. The audience is users/administrators who heavily rely on ssh to access remote devices.
 In this document, we take the approach that we want to access all appliances via SSH even if they are on the same network as our workstation.
 
-The idea is to have sshportfw listening to local addresses such as 127.0.5.1:8080. When we point our browser to this address, the *ssportfw* daemon connects to our OpenWRT router using ssh. The same thing can be achieved with the command (must be executed BEFORE we open the web page)
+The idea is to have sshportfw listening to local addresses such as 127.0.5.1:8080. When we point our browser to this address, the *sshportfw* daemon connects to our OpenWRT router using ssh. The same thing can be achieved with the command (must be executed BEFORE we open the web page)
 ```sh
 > ssh -L127.0.5.1:8080:127.0.0.1:80 applianceHostname  # (or the IP)
 ```
 
-but with sshportfw the process becomes automatic. ssportfw calls *ssh* to do the actual forwarding so some expertise in configuring the ~/.ssh/config is necessary. Note however that you do NOT need to configure port forwardings inside ~/.ssh/config. The file ~/.config/sshportfw/forwardings.json is used as we will see.
+but with sshportfw the process becomes automatic. sshportfw calls *ssh* to do the actual forwarding so some expertise in configuring the ~/.ssh/config is necessary. Note however that you do NOT need to configure port forwardings inside ~/.ssh/config. The file ~/.config/sshportfw/forwardings.json is used as we will see.
 
 
 Typically port forwarding is used to access [OpenWRT](https://openwrt.org/) routers, [Syncthing](https://syncthing.net/) web interfaces, Printer pages, and in general services that (due to security reasons) can only serve the localhost interface. Not only that, the ssh config file is very powerful and allows bypassing firewalls, accessing remote print queues etc, and all that with security, maturity and flexibility not comparable with any other software.
 
 ## STEP 1: Installation of the executable
 Note that the program is only tested on Linux.
-A Linux amd64 executable is included on the Releases page. It should run on every modern Linux for PC. It can probably work on other platforms (after a compilation), but it is not tested. See **Other platforms** below
+A Linux amd64 executable is published on the Releases page; if the newest tag has no binary yet, build it from source below. It should run on every modern Linux for PC. It can probably work on other platforms (after a compilation), but it is not tested. See **Other platforms** below
 ```sh
 # Download the executable from the latest release and
-> chmod +x ssportfw
-# Copy/move the "sshportfw" binary somewere in the PATH
+> chmod +x sshportfw
+# Copy/move the "sshportfw" binary somewhere in the PATH
 # Or if you have git and golang installed
 > git clone https://github.com/pkarsy/sshportfw
 > cd sshportfw
 > go build
 > ./sshportfw [options]
 # Or compile and run in 1 step
-> go run *.go [options]
+> go run . [options]
 ```
 
 ### STEP 2: Editing the forwardings.json file
@@ -36,7 +36,7 @@ The program is looking for the file
 ~/.config/sshportfw/forwardings.json
 ```
 
-It does not try to create it by itself.
+It does not try to create it by itself. Another file can be used with `-config`, and `-check-config` verifies it without starting anything.
 
 A sample config follows so you can copy-paste and edit it. This config assumes a router at 10.5.2.1
 and the other LAN devices to have 10.5.2.X addresses. Also, we assume that local DNS is working, for example, router or router.lan resolve to 10.5.2.1. You can completely ignore DNS by using the IP addresses. So instead of "router" use "10.5.2.1"
@@ -142,7 +142,7 @@ accept the unknown host message (if this is the first time and after you verify 
 
 ### STEP 4: running the program
 When you configure the "forwardings.json" you have to run it manually to check the output.
-If you are in constant need of the port forward facility, ie to use your printer then put the program in the list of the startup programs. If you put it in a cron startup script it won't run because it needs the DISPLAY environment variable. If you use ControlPanel->StartupApps it is ok. Redirect the output to a file to know what happens if you have problems, or use the --syslog flag.
+If you are in constant need of the port forward facility, ie to use your printer then put the program in the list of the startup programs. It no longer requires `DISPLAY`, but ssh may still need a terminal to ask for a passphrase or for a security key touch, so a plain cron job has nowhere to prompt: use your desktop's Startup Applications, or make sure an ssh agent and `SSH_ASKPASS` are available. Redirect the output to a file to know what happens if you have problems, or use `-s` to write to syslog.
 
 To find out whether a forwarding works without opening a browser, run
 ```sh
@@ -159,6 +159,7 @@ this means one touch per service, unless a control socket is reused.
 A failure is also written to `/dev/tty` when one is available, at most once per service per minute, so it
 is visible even when the log goes to syslog (`-s`) or to a file (`-o`). When there is no controlling
 terminal (started by systemd or cron) that message is dropped and the log is the only place to look.
+`-o /dev/null` therefore silences the log, but not those one-line messages on a desktop terminal.
 
 ### Signals
 | signal | what it does |
@@ -178,6 +179,11 @@ Upgrading while it runs:
 > cd ~/Projects/sshportfw && go build -o sshportfw .
 > kill -HUP $(pgrep -x sshportfw)
 ```
+
+If you are upgrading from 0.6.x: `SIGHUP` used to reload the configuration in place. That is now `SIGUSR1`;
+`SIGHUP` restarts the process and drops the open forwards. Version 0.7.0 also refuses configurations it
+used to accept, such as a listen address with no host (`:8080`), a wildcard address, the same `ListenAddr`
+twice, or a `Host` starting with `-`.
 
 The next sections are about configuring ssh to make sshportfw more useful.
 
@@ -245,7 +251,7 @@ match host router !exec "ip -4 a | grep -q 10.5.2."
     Print source code line numbers for debugging
 -o string
 -output string
-    Redirect output to file, only messages from ssh client are displayed to console. Use -o /dev/null for quiet operation
+    Redirect the log to a file. Use -o /dev/null for a quiet log; failures still appear on /dev/tty
 -s	
 -syslog
     redirects output to syslog
@@ -282,7 +288,7 @@ There are plenty of tutorials on how to use ports<1024 (SETCAP port redir etc), 
 ## Security
 First of all, use the program at your own risk! Anything related to SSH with the wrong configuration can expose your appliances/PCs to the world.
 - On a system with multiple users, all users with a shell will have access to the remote services, at least to the login page. The program is designed to be used from your trusted PC/laptop, not from a shared computer at work/university. The use of an SSH client in a machine that is not yours is a security risk anyway. Of course, this depends on how important the server is.
-- The ssh command keeps the SSH connection open as long as there are active forwardings (This can be very long) but ever after this, the program keeps the connection open if you use the ConrolSocket option. After this, the SSH connection is closed and you will need to re-login (ie you need to touch again your youbikey) to use the service.
+- The ssh command keeps the SSH connection open as long as there are active forwardings (This can be very long) but even after this, the program keeps the connection open if you use the ControlSocket option. After this, the SSH connection is closed and you will need to re-login (ie you need to touch your Yubikey again) to use the service.
 - Password-based authentication must be avoided (Easily stolen and guessed !). And file-based private ssh keys (those in ~/.ssh/) can be copied and used without you noticing. A hardware security key is the real solution.
 
 ### Security hardening: Yubikey, Solokey, GNUK
@@ -293,7 +299,7 @@ The testing is very limited, the program is used on a Linux Mint laptop using Yb
 The configuration parser has unit tests; run `go test ./...` after changing it.
 
 ## Other platforms
-The program is pure Golang and is trivial to compile and cross-compile for any supported platform. It is only tested on Linux however. If you can run the application successfully on a Mac or Windows send me the instructions to include in this document.
+The program is pure Golang. It builds for Linux and macOS. The Windows build fails because the syslog output uses `log/syslog`, which is not available there. It is only tested on Linux. If you can run the application successfully on a Mac send me the instructions to include in this document.
 
 ## Alternative solutions
 No need to read all this, just for completeness. The (many) problems with these solutions are the reason sshportfw was created.

@@ -142,7 +142,7 @@ func flagParse() {
 	flag.BoolVar(&version, "v", false, "")
 	flag.BoolVar(&syslogOutput, "syslog", false, "redirects output to syslog")
 	flag.BoolVar(&syslogOutput, "s", false, "")
-	flag.StringVar(&output, "output", "", "Redirect output to file, only messages from ssh client are displayed to console. Use -o /dev/null for quiet operation")
+	flag.StringVar(&output, "output", "", "Redirect the log to a file. Use -o /dev/null for a quiet log; failures still appear on /dev/tty")
 	flag.StringVar(&output, "o", "", "")
 	flag.BoolVar(&lines, "lines", false, "Print source code line numbers for debugging")
 	flag.BoolVar(&lines, "l", false, "")
