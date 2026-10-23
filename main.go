@@ -111,7 +111,7 @@ const sshConnectTimeout = "10"
 const notifyInterval = time.Minute
 
 // set at build time with -ldflags "-X main.versionString=..."
-var versionString = "0.6.3"
+var versionString = "0.7.0"
 
 var (
 	// set from the command line before any goroutine starts
